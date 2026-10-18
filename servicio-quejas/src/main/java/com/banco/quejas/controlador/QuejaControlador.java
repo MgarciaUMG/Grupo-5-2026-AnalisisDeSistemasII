@@ -384,6 +384,7 @@ public class QuejaControlador {
             queja.setEstado(estadoNuevo);
             queja.setResolucionAgente(resolucion);
             queja.setFirmaId(envelopeIdGuardar);
+            queja.setFirmaIdAgente(envelopeIdGuardar);
             quejaRepositorio.save(queja); // Guardamos los cambios
 
             // Guardar en la bitácora
@@ -677,27 +678,35 @@ public class QuejaControlador {
             if (estadoNuevo == null)
                 throw new Exception("El estado 'EnRevisionJefe' no existe.");
 
+            String idLienzoLimpio = queja.getFirmaIdAgente();
+
+            // BLOQUEO DE SEGURIDAD PARA PRUEBAS:
+            if (idLienzoLimpio == null || idLienzoLimpio.trim().isEmpty()) {
+                return ResponseEntity.status(400).body(
+                        "ERROR: No se encontró el respaldo original del Agente. Por favor, crea un ticket NUEVO desde cero para probar este flujo.");
+            }
+
             // 1. Descargamos el PDF que YA trae la firma del Agente
-            byte[] pdfConFirmaAgente = docuSignService.descargarDocumentoFirmado(queja.getFirmaId());
+            byte[] pdfConFirmaAgente = docuSignService.descargarDocumentoFirmado(idLienzoLimpio);
 
             // 2. Generamos una nueva URL de firma, ahora para el Supervisor.
             // (Usamos el email extraído del token, y puedes ajustar el nombre si tienes
             // cómo extraerlo)
             java.util.Map<String, String> docuSignRespuesta = docuSignService.generarUrlDeFirma(
-                    "sup-" + queja.getId(), // Un ID único referencial
-                    nombreSupervisor, // Nombre a mostrar en la firma
-                    emailSupervisor, // Correo real del supervisor
-                    pdfConFirmaAgente, // El PDF que ya trae la primera firma
+                    "sup-" + queja.getId(), 
+                    nombreSupervisor, 
+                    emailSupervisor, 
+                    pdfConFirmaAgente, // <-- Mandamos el lienzo garantizado
                     numeroTicket,
-                    "/bandeja-supervisor" // La ruta de retorno de tu React
+                    "/bandeja-supervisor" 
             );
 
-            String envelopeIdSupervisor = docuSignRespuesta.get("envelopeId");
+            
 
             queja.setEstado(estadoNuevo);
             queja.setObservacionesSupervisor(observaciones);
-            queja.setFirmaId(envelopeIdSupervisor);
-            queja.setFirmaIdSupervisor(envelopeIdSupervisor);
+            queja.setFirmaId(docuSignRespuesta.get("envelopeId"));
+            queja.setFirmaIdSupervisor(docuSignRespuesta.get("envelopeId")); // <-- Creamos el respaldo para el Jefe
             quejaRepositorio.save(queja);
 
             // Registro de Bitácora
@@ -896,7 +905,8 @@ public class QuejaControlador {
 
             // 1. Descargamos el PDF que YA trae las 2 firmas anteriores (Agente y
             // Supervisor)
-            String idBaseParaJefe = queja.getFirmaIdSupervisor() != null ? queja.getFirmaIdSupervisor() : queja.getFirmaId();
+            String idBaseParaJefe = queja.getFirmaIdSupervisor() != null ? queja.getFirmaIdSupervisor()
+                    : queja.getFirmaId();
             byte[] pdfConDosFirmas = docuSignService.descargarDocumentoFirmado(idBaseParaJefe);
 
             // 2. Generamos una nueva URL de firma, ahora para el Jefe, anclada a la palabra
