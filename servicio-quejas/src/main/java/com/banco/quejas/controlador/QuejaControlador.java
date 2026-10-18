@@ -603,18 +603,19 @@ public class QuejaControlador {
     @GetMapping("/supervisor/pendientes")
     public ResponseEntity<?> obtenerQuejasParaSupervisor(@RequestHeader("Authorization") String authHeader) {
         try {
-            // Buscamos el estado exacto en la BD
-            EstadoQueja estado = estadoQuejaRepositorio.findByNombre("EnRevisionSupervisor");
-            if (estado == null) {
-                return ResponseEntity.ok(java.util.Collections.emptyList());
+            // Buscamos ambos estados en la BD
+            EstadoQueja estadoRevision = estadoQuejaRepositorio.findByNombre("EnRevisionSupervisor");
+            EstadoQueja estadoDevuelta = estadoQuejaRepositorio.findByNombre("DevueltaParaRevision");
+
+            java.util.List<Queja> quejasPendientes = new java.util.ArrayList<>();
+
+            if (estadoRevision != null) {
+                quejasPendientes.addAll(quejaRepositorio.findByEstado(estadoRevision));
+            }
+            if (estadoDevuelta != null) {
+                quejasPendientes.addAll(quejaRepositorio.findByEstado(estadoDevuelta));
             }
 
-            // Traemos las quejas
-            List<Queja> quejasPendientes = quejaRepositorio.findByEstado(estado);
-
-            // Si quieres puedes validar si la lista está vacía para el FA01 desde aquí,
-            // aunque usualmente React maneja el mensaje "No existen quejas" si recibe un
-            // array vacío [].
             return ResponseEntity.ok(quejasPendientes);
 
         } catch (Exception e) {
