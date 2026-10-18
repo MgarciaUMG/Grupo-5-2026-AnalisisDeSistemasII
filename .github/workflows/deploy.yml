@@ -150,7 +150,7 @@ jobs:
             deploy-out/servicio-auth.jar \
             deploy-out/servicio-quejas.jar \
             deploy-out/frontend-dist.tar.gz \
-            "$AZURE_SSH_USER@$AZURE_SSH_HOST:/home/azureuser/deploy-staging/"
+            "$AZURE_SSH_USER@$AZURE_SSH_HOST:/home/githubdeploy/deploy-staging/"
 
       - name: Ejecutar despliegue en Azure
         env:
