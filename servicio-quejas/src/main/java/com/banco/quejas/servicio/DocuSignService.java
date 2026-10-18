@@ -5,9 +5,9 @@ import com.docusign.esign.client.ApiClient;
 import com.docusign.esign.client.auth.OAuth;
 import com.docusign.esign.model.*;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
-import org.springframework.util.FileCopyUtils;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import java.util.Collections;
 import java.util.Base64;
@@ -26,6 +26,12 @@ public class DocuSignService {
 
     @Value("${docusign.base-path}")
     private String basePath;
+
+    @Value("${docusign.private-key-path:/etc/quejas-bancarias/docusign-private.key}")
+    private String privateKeyPath;
+
+    @Value("${app.frontend-url:https://bcnenlinea.eastus2.cloudapp.azure.com}")
+    private String frontendUrl;
 
     // Método principal para generar la URL de firma embebida
     public java.util.Map<String, String> generarUrlDeFirma(String usuarioId, String nombre, String email,
@@ -95,7 +101,13 @@ public class DocuSignService {
 
         // 4. Generar la vista de firma (Recipient View)
         RecipientViewRequest viewRequest = new RecipientViewRequest();
-        viewRequest.setReturnUrl("http://localhost:5173" + rutaRetorno + "?ticketFirma=" + numeroTicket);
+        String baseUrl = frontendUrl.replaceAll("/+$", "");
+        String ruta = rutaRetorno.startsWith("/") ? rutaRetorno : "/" + rutaRetorno;
+        String separador = ruta.contains("?") ? "&" : "?";
+
+         viewRequest.setReturnUrl(
+         baseUrl + ruta + separador + "ticketFirma=" + numeroTicket
+        );
         viewRequest.setAuthenticationMethod("none");
         viewRequest.setEmail(email);
         viewRequest.setUserName(nombre);
@@ -115,8 +127,7 @@ public class DocuSignService {
         ApiClient apiClient = new ApiClient(basePath);
 
         // Leer private.key desde src/main/resources
-        ClassPathResource resource = new ClassPathResource("private.key");
-        byte[] privateKeyBytes = FileCopyUtils.copyToByteArray(resource.getInputStream());
+        byte[] privateKeyBytes = Files.readAllBytes(Path.of(privateKeyPath));
 
         java.util.List<String> scopes = java.util.Arrays.asList(OAuth.Scope_SIGNATURE, OAuth.Scope_IMPERSONATION);
 

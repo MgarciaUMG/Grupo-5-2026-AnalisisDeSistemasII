@@ -15,3 +15,5 @@ target/
 
 # Ignorar evidencias subidas por los usuarios
 uploads/
+
+**/private.key

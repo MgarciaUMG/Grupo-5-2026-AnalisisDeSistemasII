@@ -1,0 +1,169 @@
+name: Build and Deploy to Azure
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: |
+            puerta-enlace/pom.xml
+            servicio-auth/pom.xml
+            servicio-quejas/pom.xml
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend-bancario/package-lock.json
+
+      - name: Compilar servicios Spring Boot
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for module in puerta-enlace servicio-auth servicio-quejas; do
+            echo "Compilando $module..."
+            (
+              cd "$module"
+              mvn -B -DskipTests package
+            )
+          done
+
+      - name: Compilar frontend React
+        working-directory: frontend-bancario
+        run: |
+          npm ci
+          npm run build
+
+      - name: Preparar artefactos
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p deploy-out
+
+          cp puerta-enlace/target/puerta-enlace-0.0.1-SNAPSHOT.jar \
+            deploy-out/puerta-enlace.jar
+
+          cp servicio-auth/target/servicio-auth-0.0.1-SNAPSHOT.jar \
+            deploy-out/servicio-auth.jar
+
+          cp servicio-quejas/target/servicio-quejas-0.0.1-SNAPSHOT.jar \
+            deploy-out/servicio-quejas.jar
+
+          # Verificar que el JAR de quejas no incluya la clave privada.
+          jar tf deploy-out/servicio-quejas.jar > deploy-out/archivos-jar.txt
+
+          if grep -Eqi '(^|/)private\.key$' deploy-out/archivos-jar.txt; then
+            echo "ERROR: el JAR contiene private.key."
+            exit 1
+          fi
+
+          test -s frontend-bancario/dist/index.html
+
+          tar -czf deploy-out/frontend-dist.tar.gz \
+            -C frontend-bancario/dist .
+
+          rm deploy-out/archivos-jar.txt
+
+          echo "Artefactos preparados:"
+          ls -lh deploy-out
+
+      - name: Configurar conexión SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.AZURE_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.AZURE_SSH_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -n "$SSH_PRIVATE_KEY"
+          test -n "$SSH_KNOWN_HOSTS"
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+          chmod 600 ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Verificar conexión SSH
+        env:
+          AZURE_SSH_HOST: ${{ secrets.AZURE_SSH_HOST }}
+          AZURE_SSH_USER: ${{ secrets.AZURE_SSH_USER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -n "$AZURE_SSH_HOST"
+          test -n "$AZURE_SSH_USER"
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=15 \
+            "$AZURE_SSH_USER@$AZURE_SSH_HOST" \
+            'echo "Conexión SSH correcta"; whoami'
+
+      - name: Transferir artefactos a Azure
+        env:
+          AZURE_SSH_HOST: ${{ secrets.AZURE_SSH_HOST }}
+          AZURE_SSH_USER: ${{ secrets.AZURE_SSH_USER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          scp \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            deploy-out/puerta-enlace.jar \
+            deploy-out/servicio-auth.jar \
+            deploy-out/servicio-quejas.jar \
+            deploy-out/frontend-dist.tar.gz \
+            "$AZURE_SSH_USER@$AZURE_SSH_HOST:/home/azureuser/deploy-staging/"
+
+      - name: Ejecutar despliegue en Azure
+        env:
+          AZURE_SSH_HOST: ${{ secrets.AZURE_SSH_HOST }}
+          AZURE_SSH_USER: ${{ secrets.AZURE_SSH_USER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            "$AZURE_SSH_USER@$AZURE_SSH_HOST" \
+            'sudo -n /usr/local/sbin/deploy-quejas-bancarias'
