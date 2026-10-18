@@ -692,9 +692,12 @@ public class QuejaControlador {
                     "/bandeja-supervisor" // La ruta de retorno de tu React
             );
 
+            String envelopeIdSupervisor = docuSignRespuesta.get("envelopeId");
+
             queja.setEstado(estadoNuevo);
             queja.setObservacionesSupervisor(observaciones);
-            queja.setFirmaId(docuSignRespuesta.get("envelopeId"));
+            queja.setFirmaId(envelopeIdSupervisor);
+            queja.setFirmaIdSupervisor(envelopeIdSupervisor);
             quejaRepositorio.save(queja);
 
             // Registro de Bitácora
@@ -893,7 +896,8 @@ public class QuejaControlador {
 
             // 1. Descargamos el PDF que YA trae las 2 firmas anteriores (Agente y
             // Supervisor)
-            byte[] pdfConDosFirmas = docuSignService.descargarDocumentoFirmado(queja.getFirmaId());
+            String idBaseParaJefe = queja.getFirmaIdSupervisor() != null ? queja.getFirmaIdSupervisor() : queja.getFirmaId();
+            byte[] pdfConDosFirmas = docuSignService.descargarDocumentoFirmado(idBaseParaJefe);
 
             // 2. Generamos una nueva URL de firma, ahora para el Jefe, anclada a la palabra
             // "Jefe"
@@ -977,7 +981,7 @@ public class QuejaControlador {
             // Mensaje interno
             MensajeQueja mensajeDevolucion = new MensajeQueja(
                     queja, emailJefe, "JEFE",
-                    "Dictamen rechazado por la Jefatura: " + motivo,
+                    "Devuelta a revisión por la Jefatura. Motivo: " + motivo,
                     java.time.LocalDateTime.now());
             mensajeQuejaRepositorio.save(mensajeDevolucion);
 

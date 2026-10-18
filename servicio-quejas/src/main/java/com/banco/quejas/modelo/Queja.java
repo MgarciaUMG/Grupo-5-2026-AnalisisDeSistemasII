@@ -55,6 +55,9 @@ public class Queja {
     @Column(name = "firma_id", length = 100)
     private String firmaId;
 
+    @Column(name = "firma_id_supervisor")
+    private String firmaIdSupervisor;
+
     @ManyToOne
     @JoinColumn(name = "queja_padre_id", nullable = true)
     @com.fasterxml.jackson.annotation.JsonIgnore
@@ -193,5 +196,13 @@ public class Queja {
 
     public void setQuejaPadre(Queja quejaPadre) {
         this.quejaPadre = quejaPadre;
+    }
+
+    public String getFirmaIdSupervisor() {
+        return firmaIdSupervisor;
+    }
+
+    public void setFirmaIdSupervisor(String firmaIdSupervisor) {
+        this.firmaIdSupervisor = firmaIdSupervisor;
     }
 }
