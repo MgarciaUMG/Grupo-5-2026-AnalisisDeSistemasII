@@ -375,7 +375,10 @@ function BandejaSupervisor({ onLogout }) {
                   : (queja.clienteNombre || `Usuario ID: ${queja.idUsuario}`);
 
                 const estadoTicketLimpiado = estadoTexto.replace(/\s+/g, '');
-                const bloqueadoPorEstado = estadoTicketLimpiado !== 'EnRevisionSupervisor';
+                const bloqueadoPorEstado =
+                  estadoTicketLimpiado !== 'EnRevisionSupervisor' &&
+                  estadoTicketLimpiado !== 'DevueltaParaRevision';
+
                 const controlesBloqueados = procesandoAccion || accionCompletada || bloqueadoPorEstado;
 
                 return (

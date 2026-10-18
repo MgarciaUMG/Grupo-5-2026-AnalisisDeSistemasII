@@ -582,7 +582,12 @@ public class QuejaControlador {
             boolean esElAgenteAsignado = queja.getAgenteAsignadoEmail() != null &&
                     queja.getAgenteAsignadoEmail().equals(emailUsuario);
 
-            if (!esElCreador && !esElAgenteAsignado) {
+            String tokenPayload = new String(
+                    java.util.Base64.getUrlDecoder().decode(authHeader.replace("Bearer ", "").split("\\.")[1]));
+            boolean esSupervisor = tokenPayload.toUpperCase().contains("SUPERVISOR");
+            boolean esJefe = tokenPayload.toUpperCase().contains("JEFE");
+
+            if (!esElCreador && !esElAgenteAsignado && !esSupervisor && !esJefe) {
                 return ResponseEntity.status(403).body("Acceso denegado al historial.");
             }
 
@@ -898,8 +903,7 @@ public class QuejaControlador {
                     emailJefe,
                     pdfConDosFirmas,
                     numeroTicket,
-                    "/bandeja-jefe"
-            );
+                    "/bandeja-jefe");
 
             queja.setEstado(estadoNuevo);
             queja.setFirmaId(docuSignRespuesta.get("envelopeId"));
