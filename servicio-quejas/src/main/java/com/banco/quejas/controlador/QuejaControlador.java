@@ -582,7 +582,12 @@ public class QuejaControlador {
             boolean esElAgenteAsignado = queja.getAgenteAsignadoEmail() != null &&
                     queja.getAgenteAsignadoEmail().equals(emailUsuario);
 
-            if (!esElCreador && !esElAgenteAsignado) {
+            String tokenPayload = new String(
+                    java.util.Base64.getUrlDecoder().decode(authHeader.replace("Bearer ", "").split("\\.")[1]));
+            boolean esSupervisor = tokenPayload.toUpperCase().contains("SUPERVISOR");
+            boolean esJefe = tokenPayload.toUpperCase().contains("JEFE");
+
+            if (!esElCreador && !esElAgenteAsignado && !esSupervisor && !esJefe) {
                 return ResponseEntity.status(403).body("Acceso denegado al historial.");
             }
 
@@ -603,18 +608,16 @@ public class QuejaControlador {
     @GetMapping("/supervisor/pendientes")
     public ResponseEntity<?> obtenerQuejasParaSupervisor(@RequestHeader("Authorization") String authHeader) {
         try {
-            // Buscamos el estado exacto en la BD
-            EstadoQueja estado = estadoQuejaRepositorio.findByNombre("EnRevisionSupervisor");
-            if (estado == null) {
-                return ResponseEntity.ok(java.util.Collections.emptyList());
+            // Buscamos ambos estados en la BD
+            EstadoQueja estadoRevision = estadoQuejaRepositorio.findByNombre("EnRevisionSupervisor");
+            
+
+            java.util.List<Queja> quejasPendientes = new java.util.ArrayList<>();
+
+            if (estadoRevision != null) {
+                quejasPendientes.addAll(quejaRepositorio.findByEstado(estadoRevision));
             }
 
-            // Traemos las quejas
-            List<Queja> quejasPendientes = quejaRepositorio.findByEstado(estado);
-
-            // Si quieres puedes validar si la lista está vacía para el FA01 desde aquí,
-            // aunque usualmente React maneja el mensaje "No existen quejas" si recibe un
-            // array vacío [].
             return ResponseEntity.ok(quejasPendientes);
 
         } catch (Exception e) {
@@ -819,15 +822,11 @@ public class QuejaControlador {
         try {
             // Buscamos los dos estados que solicita la bandeja del Jefe
             EstadoQueja estadoRevision = estadoQuejaRepositorio.findByNombre("EnRevisionJefe");
-            EstadoQueja estadoDevuelta = estadoQuejaRepositorio.findByNombre("DevueltaParaRevision");
 
             java.util.List<Queja> quejasPendientes = new java.util.ArrayList<>();
 
             if (estadoRevision != null) {
                 quejasPendientes.addAll(quejaRepositorio.findByEstado(estadoRevision));
-            }
-            if (estadoDevuelta != null) {
-                quejasPendientes.addAll(quejaRepositorio.findByEstado(estadoDevuelta));
             }
 
             return ResponseEntity.ok(quejasPendientes);
@@ -908,7 +907,7 @@ public class QuejaControlador {
             String ipCliente = obtenerIpCliente(request);
             com.banco.quejas.modelo.BitacoraQueja bitacora = new com.banco.quejas.modelo.BitacoraQueja(
                     emailJefe, queja.getId(), estadoAnterior, estadoNuevo.getNombre(),
-                    "Revisión Aprobada. Traslado a Jefe con observaciones: " + observaciones,
+                    "Revisión Aprobada. Traslado a Gerencia con observaciones: " + observaciones,
                     java.time.LocalDateTime.now(), ipCliente);
             bitacoraQuejaRepositorio.save(bitacora);
 
@@ -972,7 +971,7 @@ public class QuejaControlador {
             // Mensaje interno
             MensajeQueja mensajeDevolucion = new MensajeQueja(
                     queja, emailJefe, "JEFE",
-                    "Dictamen rechazado por la Jefatura: " + motivo,
+                    "Devuelta a revisión por la jefatura. Motivo: " + motivo,
                     java.time.LocalDateTime.now());
             mensajeQuejaRepositorio.save(mensajeDevolucion);
 

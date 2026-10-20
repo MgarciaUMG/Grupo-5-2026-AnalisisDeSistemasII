@@ -53,7 +53,7 @@ function BandejaJefe({ onLogout }) {
         });
         if (resStats.ok) {
           const dataStats = await resStats.json();
-          setEstadisticasTexto(dataStats.mensajeBienvenida || dataStats.mensaje || 'Bienvenido al panel de Dirección.');
+          setEstadisticasTexto(dataStats.mensajeBienvenida || dataStats.mensaje || 'Bienvenido a su bandeja.');
         }
       } catch (e) {
         console.warn("No se pudieron cargar las estadísticas", e);
@@ -185,12 +185,9 @@ function BandejaJefe({ onLogout }) {
     // Endpoints correspondientes al Jefe
     const endpoint = tipoAccion === 'gerente'
       ? `/api/quejas/${numeroTicket}/enviar-gerente`
-      : `/api/quejas/${numeroTicket}/devolver-supervisor`;
+      : `/api/quejas/${numeroTicket}/devolver-agente`;
 
-    const payload = { 
-        observaciones: observaciones,
-        nombreFirmante: nombreParaMostrar // Para DocuSign
-    };
+    const payload = { observaciones: observaciones, nombreFirmante: nombreParaMostrar };
 
     try {
       const respuesta = await fetch(endpoint, {
@@ -209,7 +206,7 @@ function BandejaJefe({ onLogout }) {
         if (data.urlFirma) {
           setMensajeAccion({ texto: 'Redirigiendo a DocuSign para firma final...', tipo: 'info' });
           window.location.href = data.urlFirma;
-          return; 
+          return;
         }
 
         setMensajeAccion({ texto: data.mensaje || 'Operación realizada con éxito.', tipo: 'exito' });
@@ -277,11 +274,11 @@ function BandejaJefe({ onLogout }) {
           </div>
           <div className="brand-text">
             <h2 style={{ fontSize: '15px' }}>Banco Capital Nacional</h2>
-            <p>MÓDULO JEFATURA</p>
+            <p>PORTAL DEL JEFE</p>
           </div>
         </div>
 
-        <div className="sidebar-menu-title" style={{ marginTop: '10px' }}>PANEL DIRECTIVO</div>
+        <div className="sidebar-menu-title" style={{ marginTop: '10px' }}>PANEL DE CONTROL</div>
 
         <ul className="nav-list">
           <li className="nav-item">
@@ -297,7 +294,7 @@ function BandejaJefe({ onLogout }) {
               onClick={() => { setVistaActiva('pendientes'); setDetalleActivo(null); cargarDashboard(); }}
               className={`nav-btn ${vistaActiva === 'pendientes' ? 'active' : ''}`}
             >
-              Aprobación Final
+              Revisión de Quejas
             </button>
           </li>
         </ul>
@@ -358,20 +355,20 @@ function BandejaJefe({ onLogout }) {
                 return (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', borderBottom: '1px solid #e2e8f0', paddingBottom: '15px' }}>
-                      <h2 style={{ margin: 0, color: '#0f172a' }}>Revisión Final de Caso #{numeroTicketReal}</h2>
+                      <h2 style={{ margin: 0, color: '#0f172a' }}>Revisión de Caso #{numeroTicketReal}</h2>
                       <button
                         onClick={() => { setDetalleActivo(null); setVistaActiva('pendientes'); cargarDashboard(); }}
                         style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer' }}
                       >
-                        ← Volver al listado
+                        ← Volver a la Bandeja
                       </button>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '25px' }}>
                       <div>
                         <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>DATOS DEL CLIENTE</p>
-                        <p style={{ margin: 0, color: '#1e293b', fontWeight: '600', textTransform: 'capitalize' }}>{nombreCompleto}</p>
-                        {queja.contactoUsuario && <p style={{ margin: '3px 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>{queja.contactoUsuario}</p>}
+                        <p style={{ margin: 0, color: '#1e293b', fontWeight: '900' }}>{'Nombre: ' + nombreCompleto}</p>
+                        <p style={{ margin: 0, color: '#1e293b', fontWeight: '900' }}>{'Correo: ' + queja.usuarioEmail}</p>
                       </div>
                       <div>
                         <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>ESTADO ACTUAL</p>
@@ -381,11 +378,15 @@ function BandejaJefe({ onLogout }) {
                       </div>
                       <div>
                         <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>FECHA DE REGISTRO</p>
-                        <p style={{ margin: 0, color: '#1e293b' }}>{queja.fechaYHora || queja.fechaCreacion || 'No disponible'}</p>
+                        <p style={{ margin: 0, color: '#1e293b', fontWeight: '900' }}>{queja.fechaYHora || queja.fechaCreacion || 'No disponible'}</p>
                       </div>
                       <div>
-                        <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>TÍTULO / ASUNTO</p>
-                        <p style={{ margin: 0, color: '#1e293b' }}>{obtenerTextoCampo(queja.titulo)}</p>
+                        <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>PRODUCTO RELACIONADO</p>
+                        <p style={{ margin: 0, color: '#1e293b', fontWeight: '900' }}>{obtenerTextoCampo(queja.producto)}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>TÍTULO</p>
+                        <p style={{ margin: 0, color: '#1e293b', fontWeight: '900' }}>{obtenerTextoCampo(queja.titulo)}</p>
                       </div>
                     </div>
 
@@ -395,6 +396,7 @@ function BandejaJefe({ onLogout }) {
                         {obtenerTextoCampo(queja.descripcion)}
                       </div>
                     </div>
+
 
                     <div style={{ marginBottom: '30px' }}>
                       <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>DOCUMENTOS ADJUNTOS</p>
@@ -427,19 +429,19 @@ function BandejaJefe({ onLogout }) {
                             boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)'
                           }}
                         >
-                          📄 Ver Dictamen en Curso
+                          📄 Ver Dictamen Firmado
                         </button>
                       </div>
 
-                      <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>DICTAMEN Y OBSERVACIONES FINALES</p>
+                      <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>OBSERVACIONES DE REVISIÓN</p>
 
                       <textarea
                         value={observaciones}
                         onChange={(e) => setObservaciones(e.target.value)}
                         placeholder={
                           bloqueadoPorEstado
-                            ? `Modo lectura. El ticket está en estado "${estadoTexto}".`
-                            : "Redacte el dictamen de aprobación o rechazo final..."
+                            ? `El ticket está en estado "${estadoTexto}". No se admiten nuevas observaciones.`
+                            : "Redacte sus observaciones aquí..."
                         }
                         rows="4"
                         maxLength={500}
@@ -471,18 +473,18 @@ function BandejaJefe({ onLogout }) {
 
                       <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
                         <button
-                          onClick={() => ejecutarAccionJefe('jefe', numeroTicketReal)}
+                          onClick={() => ejecutarAccionJefe('agente', numeroTicketReal)}
                           disabled={controlesBloqueados}
                           style={{ padding: '10px 20px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: controlesBloqueados ? 'not-allowed' : 'pointer', opacity: controlesBloqueados ? 0.6 : 1 }}
                         >
-                          Devolver al Supervisor
+                          Devolver al Agente
                         </button>
                         <button
                           onClick={() => ejecutarAccionJefe('gerente', numeroTicketReal)}
                           disabled={controlesBloqueados}
                           style={{ padding: '10px 20px', background: '#00a8ff', color: 'white', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: controlesBloqueados ? 'not-allowed' : 'pointer', opacity: controlesBloqueados ? 0.6 : 1 }}
                         >
-                          Aprobar y Firmar Resolución Final
+                          Confirmar y Enviar (Traslado a Gerencia)
                         </button>
                       </div>
                     </div>
@@ -496,22 +498,13 @@ function BandejaJefe({ onLogout }) {
             <div className="fade-in">
               <div className="content-header" style={{ marginBottom: '30px' }}>
                 <h1 style={{ fontSize: '2.2rem', color: '#0f172a', margin: '0 0 10px 0' }}>
-                  Hola, {nombreParaMostrar}
+                  Hola, {nombreParaMostrar} bienvenido a su portal
                 </h1>
                 <p style={{ fontSize: '1.1rem', color: '#64748b', margin: 0 }}>
-                  Resumen de auditoría final y autorización de dictámenes escalados.
+                  Resumen de auditoría y revisión de quejas escaladas por los supervisores.
                 </p>
               </div>
 
-              {estadisticasTexto && (
-                <div style={{ backgroundColor: '#00a8ff', color: 'white', padding: '20px 30px', borderRadius: '8px', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-                  <span style={{ fontSize: '24px' }}>📊</span>
-                  <div>
-                    <h2 style={{ margin: '0 0 5px 0', fontSize: '1.2rem' }}>Resumen Directivo</h2>
-                    <p style={{ margin: 0, opacity: 0.9 }}>{estadisticasTexto}</p>
-                  </div>
-                </div>
-              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
                 <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '10px', border: '1px solid #e2e8f0', borderLeft: '4px solid #0f172a', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
@@ -522,18 +515,14 @@ function BandejaJefe({ onLogout }) {
                   <p style={{ fontSize: '0.85rem', fontWeight: '600', color: '#64748b', margin: '0 0 10px 0', textTransform: 'uppercase' }}>Pendientes de Aprobación</p>
                   <h3 style={{ fontSize: '2.2rem', color: '#0f172a', margin: 0 }}>{cargando ? '...' : statsNuevas}</h3>
                 </div>
-                <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '10px', border: '1px solid #e2e8f0', borderLeft: '4px solid #ef4444', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-                  <p style={{ fontSize: '0.85rem', fontWeight: '600', color: '#64748b', margin: '0 0 10px 0', textTransform: 'uppercase' }}>Devueltas en Proceso</p>
-                  <h3 style={{ fontSize: '2.2rem', color: '#ef4444', margin: 0 }}>{cargando ? '...' : statsDevueltas}</h3>
-                </div>
               </div>
             </div>
 
           ) : (
 
             <div className="content-card fade-in" style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-              <h1 style={{ color: '#0f172a', fontSize: '1.8rem', marginTop: 0 }}>Aprobación Final de Quejas</h1>
-              <p style={{ color: '#64748b', marginBottom: '30px' }}>Seleccione un caso procesado por el supervisor para su lectura, firma o rechazo definitivo.</p>
+              <h1 style={{ color: '#0f172a', fontSize: '1.8rem', marginTop: 0 }}>Quejas Pendientes de Revisións</h1>
+              <p style={{ color: '#64748b', marginBottom: '30px' }}>Seleccione un caso enviado por el equipo de supervisores para su respectiva auditoría y escalamiento.</p>
 
               {error && (
                 <div style={{ padding: '15px', backgroundColor: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: '6px', marginBottom: '20px' }}>
@@ -579,7 +568,7 @@ function BandejaJefe({ onLogout }) {
                                 onClick={() => verDetalle(idTicket)}
                                 style={{ padding: '6px 12px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}
                               >
-                                Revisar Expediente
+                                Ver Detalle
                               </button>
                             </td>
                           </tr>

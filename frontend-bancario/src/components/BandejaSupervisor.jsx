@@ -270,7 +270,7 @@ function BandejaSupervisor({ onLogout }) {
   // --- NUEVO: CÁLCULO DE ESTADÍSTICAS DEL SUPERVISOR ---
   const statsNuevas = quejas.filter(q => obtenerTextoCampo(q.estado).replace(/\s+/g, '') === 'EnRevisionSupervisor').length;
   // Nota: Si en tu base de datos el estado de rechazo del jefe se llama distinto (ej. 'RechazadaPorJefe'), cámbialo aquí:
-  const statsDevueltas = quejas.filter(q => obtenerTextoCampo(q.estado).replace(/\s+/g, '') === 'DevueltaPorJefe').length;
+  const statsDevueltas = quejas.filter(q => obtenerTextoCampo(q.estado).replace(/\s+/g, '') === 'DevueltaParaRevision').length;
 
   // ==========================================
   // RENDERIZADO UNIFICADO HOMOLOGADO AL PORTAL
@@ -366,7 +366,11 @@ function BandejaSupervisor({ onLogout }) {
                   : (queja.clienteNombre || `Usuario ID: ${queja.idUsuario}`);
 
                 const estadoTicketLimpiado = estadoTexto.replace(/\s+/g, '');
-                const bloqueadoPorEstado = estadoTicketLimpiado !== 'EnRevisionSupervisor';
+
+                const bloqueadoPorEstado =
+                  estadoTicketLimpiado !== 'EnRevisionSupervisor' &&
+                  estadoTicketLimpiado !== 'DevueltaParaRevision';
+
                 const controlesBloqueados = procesandoAccion || accionCompletada || bloqueadoPorEstado;
 
                 return (
@@ -377,15 +381,15 @@ function BandejaSupervisor({ onLogout }) {
                         onClick={() => { setDetalleActivo(null); setVistaActiva('pendientes'); cargarDashboard(); }}
                         style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer' }}
                       >
-                        ← Volver al listado
+                        ← Volver a la Bandeja
                       </button>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '25px' }}>
                       <div>
                         <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>DATOS DEL CLIENTE</p>
-                        <p style={{ margin: 0, color: '#1e293b', fontWeight: '600', textTransform: 'capitalize' }}>{nombreCompleto}</p>
-                        {queja.contactoUsuario && <p style={{ margin: '3px 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>{queja.contactoUsuario}</p>}
+                        <p style={{ margin: 0, color: '#1e293b', fontWeight: '900' }}>{'Nombre: ' + nombreCompleto}</p>
+                        <p style={{ margin: 0, color: '#1e293b', fontWeight: '900' }}>{'Correo: ' + queja.usuarioEmail}</p>
                       </div>
                       <div>
                         <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>ESTADO ACTUAL</p>
@@ -395,11 +399,15 @@ function BandejaSupervisor({ onLogout }) {
                       </div>
                       <div>
                         <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>FECHA DE REGISTRO</p>
-                        <p style={{ margin: 0, color: '#1e293b' }}>{queja.fechaYHora || queja.fechaCreacion || 'No disponible'}</p>
+                        <p style={{ margin: 0, color: '#1e293b', fontWeight: '900' }}>{queja.fechaYHora || queja.fechaCreacion || 'No disponible'}</p>
                       </div>
                       <div>
-                        <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>TÍTULO / ASUNTO</p>
-                        <p style={{ margin: 0, color: '#1e293b' }}>{obtenerTextoCampo(queja.titulo)}</p>
+                        <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>PRODUCTO RELACIONADO</p>
+                        <p style={{ margin: 0, color: '#1e293b', fontWeight: '900' }}>{obtenerTextoCampo(queja.producto)}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>TÍTULO</p>
+                        <p style={{ margin: 0, color: '#1e293b', fontWeight: '900' }}>{obtenerTextoCampo(queja.titulo)}</p>
                       </div>
                     </div>
 
@@ -452,7 +460,7 @@ function BandejaSupervisor({ onLogout }) {
                         onChange={(e) => setObservaciones(e.target.value)}
                         placeholder={
                           bloqueadoPorEstado
-                            ? `Modo lectura. El ticket está en estado "${estadoTexto}".`
+                            ? `El ticket está en estado "${estadoTexto}". No se admiten nuevas observaciones.`
                             : "Redacte sus observaciones aquí..."
                         }
                         rows="4"
@@ -528,10 +536,6 @@ function BandejaSupervisor({ onLogout }) {
                   <p style={{ fontSize: '0.85rem', fontWeight: '600', color: '#64748b', margin: '0 0 10px 0', textTransform: 'uppercase' }}>Pendientes de Revisión</p>
                   <h3 style={{ fontSize: '2.2rem', color: '#0f172a', margin: 0 }}>{cargando ? '...' : statsNuevas}</h3>
                 </div>
-                <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '10px', border: '1px solid #e2e8f0', borderLeft: '4px solid #ef4444', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-                  <p style={{ fontSize: '0.85rem', fontWeight: '600', color: '#64748b', margin: '0 0 10px 0', textTransform: 'uppercase' }}>Devueltas por el Jefe</p>
-                  <h3 style={{ fontSize: '2.2rem', color: '#ef4444', margin: 0 }}>{cargando ? '...' : statsDevueltas}</h3>
-                </div>
               </div>
             </div>
 
@@ -586,7 +590,7 @@ function BandejaSupervisor({ onLogout }) {
                                 onClick={() => verDetalle(idTicket)}
                                 style={{ padding: '6px 12px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}
                               >
-                                Revisar Expediente
+                                Ver Detalle
                               </button>
                             </td>
                           </tr>
