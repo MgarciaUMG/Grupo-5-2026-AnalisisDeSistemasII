@@ -66,4 +66,52 @@ public interface QuejaRepositorio extends JpaRepository<Queja, Long> {
 
                 String getApellido();
         }
+
+        // ====================================================================
+        // CONSULTAS NATIVAS PARA EL PORTAL ADMIN (Sin necesidad de entidades)
+        // ====================================================================
+
+        @Query(value = "SELECT ce.nombre, COUNT(q.id) FROM catalogo_estados ce LEFT JOIN quejas q ON ce.id = q.estado_id GROUP BY ce.nombre", nativeQuery = true)
+        List<Object[]> contarQuejasPorEstado();
+
+        @Query(value = "SELECT agente_asignado_email, COUNT(id) FROM quejas WHERE agente_asignado_email IS NOT NULL GROUP BY agente_asignado_email", nativeQuery = true)
+        List<Object[]> contarQuejasPorUsuario();
+
+        // 1. Proyección y consulta para Usuarios
+        public interface UsuarioAdminProyeccion {
+                String getId();
+
+                String getEmail();
+
+                Boolean getActivo();
+        }
+
+        @Query(value = "SELECT CAST(id AS VARCHAR) as id, email, activo FROM usuarios", nativeQuery = true)
+        List<UsuarioAdminProyeccion> listarUsuariosAdmin();
+
+        @org.springframework.data.jpa.repository.Modifying
+        @org.springframework.transaction.annotation.Transactional
+        @Query(value = "UPDATE usuarios SET activo = NOT activo WHERE id = CAST(:id AS uuid)", nativeQuery = true)
+        int toggleEstadoUsuario(@org.springframework.data.repository.query.Param("id") String id);
+
+        // 2. Proyección y consulta para la Bitácora de Auth
+        public interface BitacoraAuthProyeccion {
+                Long getId();
+
+                String getUsuario();
+
+                String getRol();
+
+                String getAccion();
+
+                String getFechaHora();
+
+                String getDireccionIp();
+        }
+
+        @Query(value = "SELECT id, usuario, rol, accion, CAST(fecha_hora AS VARCHAR) as fechaHora, direccion_ip as direccionIp FROM bitacora_auditoria", nativeQuery = true)
+        List<BitacoraAuthProyeccion> listarBitacoraAuth();
+
+        @Query(value = "SELECT usuario_email, COUNT(id) FROM quejas GROUP BY usuario_email", nativeQuery = true)
+        List<Object[]> contarQuejasPorCliente();
 }

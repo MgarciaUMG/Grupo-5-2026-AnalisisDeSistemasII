@@ -14,7 +14,7 @@ public class ServicioAuthApplication {
     public void init() {
         // Forzar la zona horaria a UTC-6 (Guatemala)
         TimeZone.setDefault(TimeZone.getTimeZone("America/Guatemala"));
-        System.out.println("🕒 Zona horaria configurada a: " + TimeZone.getDefault().getID());
+        System.out.println("Zona horaria configurada a: " + TimeZone.getDefault().getID());
     }
 
     public static void main(String[] args) {

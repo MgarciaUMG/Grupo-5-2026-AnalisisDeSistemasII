@@ -376,7 +376,7 @@ function BandejaGerente({ onLogout }) {
                     {detalleActivo && !cargandoDetalle ? (
                         <div className="content-card fade-in" style={{ maxWidth: '1000px', margin: '0 auto', backgroundColor: 'white', padding: '30px', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
                             {(() => {
-                                const { queja, documentos } = detalleActivo;
+                                const { queja, documentos, quejasRelacionadas } = detalleActivo;
                                 const estadoTexto = obtenerTextoCampo(queja.estado) || 'EnDictamen';
                                 const numeroTicketReal = obtenerTextoCampo(queja.numeroTicket);
                                 const nombreCompleto = (queja.usuarioNombre || queja.usuarioApellido)
@@ -385,8 +385,15 @@ function BandejaGerente({ onLogout }) {
 
                                 const estadoTicketLimpiado = estadoTexto.replace(/\s+/g, '');
 
+                                // Validar si existen quejas hijas pendientes (no Aprobadas ni Denegadas)
+                                const hijasPendientes = (quejasRelacionadas || []).filter(hija => {
+                                    const estadoHija = (typeof hija.estado === 'object' && hija.estado.nombre) ? hija.estado.nombre : hija.estado;
+                                    return estadoHija !== 'Aprobada' && estadoHija !== 'Denegada';
+                                });
+
+                                const tieneHijasPendientes = hijasPendientes.length > 0;
                                 const bloqueadoPorEstado = estadoTicketLimpiado !== 'EnDictamen';
-                                const controlesBloqueados = procesandoAccion || accionCompletada || bloqueadoPorEstado;
+                                const controlesBloqueados = procesandoAccion || accionCompletada || bloqueadoPorEstado || tieneHijasPendientes;
 
                                 return (
                                     <>
@@ -471,6 +478,31 @@ function BandejaGerente({ onLogout }) {
                                                     📄 Ver Dictamen Firmado
                                                 </button>
                                             </div>
+
+                                            {/* ========================================================= */}
+                                            {/* NUEVO: ALERTA DE QUEJAS HIJAS PENDIENTES CON LISTADO      */}
+                                            {/* ========================================================= */}
+                                            {tieneHijasPendientes && (
+                                                <div style={{
+                                                    marginBottom: '20px', padding: '15px', borderRadius: '30px', fontSize: '0.99rem', fontWeight: '500',
+                                                    backgroundColor: '#fef2f2', color: '#991b1b', border: '04px solid #fecaca'
+                                                }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                                                        <strong>Atención:</strong> No es posible procesar esta Queja. Debe procesar primero las siguientes quejas relacionadas:
+                                                    </div>
+                                                    <ul style={{ margin: '0 0 0 25px', padding: 0, fontSize: '0.99rem', lineHeight: '1.6' }}>
+                                                        {hijasPendientes.map(hija => {
+                                                            const estadoHija = (typeof hija.estado === 'object' && hija.estado.nombre) ? hija.estado.nombre : hija.estado;
+                                                            return (
+                                                                <li key={hija.id}>
+                                                                    Ticket <strong>{obtenerTextoCampo(hija.numeroTicket)}</strong> - Estado actual: <span style={{ fontWeight: '600' }}>{estadoHija}</span>
+                                                                </li>
+                                                            );
+                                                        })}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                            {/* ========================================================= */}
 
                                             <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>OBSERVACIONES DE REVISIÓN</p>
 

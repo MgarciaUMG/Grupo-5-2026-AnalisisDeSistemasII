@@ -1035,6 +1035,27 @@ public class QuejaControlador {
             if (queja == null)
                 return ResponseEntity.notFound().build();
 
+            // =========================================================
+            // NUEVO: VALIDACIÓN DE QUEJAS HIJAS PENDIENTES
+            // =========================================================
+            java.util.List<Queja> quejasHijas = quejaRepositorio.findByQuejaPadreId(queja.getId());
+
+            boolean tieneHijasPendientes = false;
+            for (Queja hija : quejasHijas) {
+                String estadoHija = hija.getEstado().getNombre();
+                // Si la hija NO está Aprobada y NO está Denegada, sigue pendiente
+                if (!estadoHija.equals("Aprobada") && !estadoHija.equals("Denegada")) {
+                    tieneHijasPendientes = true;
+                    break;
+                }
+            }
+
+            if (tieneHijasPendientes) {
+                return ResponseEntity.badRequest().body("No es posible " + accion
+                        + " esta queja. Primero debe cerrar las quejas hijas (relacionadas) pendientes.");
+            }
+            // =========================================================
+
             String estadoAnterior = queja.getEstado().getNombre();
 
             // Elegimos el estado final según el botón

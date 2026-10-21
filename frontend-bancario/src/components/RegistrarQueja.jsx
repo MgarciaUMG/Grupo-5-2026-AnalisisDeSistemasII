@@ -127,7 +127,7 @@ function RegistrarQueja() {
 
       } else {
         const errorText = await respuesta.text();
-        setMensaje({ texto: `Error del servidor: ${errorText || 'No se pudo registrar la queja.'}`, tipo: 'error' });
+        setMensaje({ texto: ` ${errorText || 'No se pudo registrar la queja.'}`, tipo: 'error' });
       }
     } catch (error) {
       console.error('Error de conexión:', error);
