@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import HistorialMensajes from './HistorialMensajes';
 
 function BandejaGerente({ onLogout }) {
@@ -17,6 +17,7 @@ function BandejaGerente({ onLogout }) {
     const [refreshHistorial, setRefreshHistorial] = useState(0);
     const [mostrarSidebar, setMostrarSidebar] = useState(false);
     const [vistaActiva, setVistaActiva] = useState('inicio');
+    const correoEnviadoRef = useRef(false);
 
     const obtenerToken = () => {
         let tokenString = localStorage.getItem('token');
@@ -130,7 +131,8 @@ function BandejaGerente({ onLogout }) {
         const evento = params.get('event');
         const ticketFirma = params.get('ticketFirma');
 
-        if (evento === 'signing_complete' && ticketFirma) {
+        if (evento === 'signing_complete' && ticketFirma && !correoEnviadoRef.current) {
+            correoEnviadoRef.current = true;
             setMensajeAccion({ texto: 'Firma exitosa. Generando PDF y enviando al cliente...', tipo: 'info' });
 
             const token = obtenerToken();
@@ -328,7 +330,7 @@ function BandejaGerente({ onLogout }) {
                             onClick={() => { setVistaActiva('pendientes'); setDetalleActivo(null); cargarDashboard(); }}
                             className={`nav-btn ${vistaActiva === 'pendientes' ? 'active' : ''}`}
                         >
-                            Dictámenes Finales
+                            Quejas pendientes de Dictamen
                         </button>
                     </li>
                 </ul>
@@ -457,7 +459,7 @@ function BandejaGerente({ onLogout }) {
 
                                         <div style={{ borderTop: '2px dashed #cbd5e1', paddingTop: '20px', marginTop: '20px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                                                <h3 style={{ fontSize: '1.2rem', color: '#0f172a', margin: 0 }}>Firma y Comentarios de Gerencia</h3>
+                                                <h3 style={{ fontSize: '1.2rem', color: '#0f172a', margin: 0 }}>Gestión del Gerente</h3>
                                                 <button
                                                     onClick={() => verDictamenFirmado(numeroTicketReal)}
                                                     style={{
@@ -470,7 +472,7 @@ function BandejaGerente({ onLogout }) {
                                                 </button>
                                             </div>
 
-                                            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>OBSERVACIONES FINALES (Se imprimirán en el PDF de Resolución)</p>
+                                            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>OBSERVACIONES DE REVISIÓN</p>
 
                                             <textarea
                                                 value={observaciones}
@@ -478,7 +480,7 @@ function BandejaGerente({ onLogout }) {
                                                 placeholder={
                                                     bloqueadoPorEstado
                                                         ? `El ticket está en estado "${estadoTexto}". No se admiten nuevas justificaciones.`
-                                                        : "Escriba los comentarios que justifican la aprobación o denegación..."
+                                                        : "Escriba las observaciones que justifiquen la aprobación o denegación..."
                                                 }
                                                 rows="4"
                                                 maxLength={500}
@@ -556,7 +558,7 @@ function BandejaGerente({ onLogout }) {
                                     <h3 style={{ fontSize: '2.2rem', color: '#0f172a', margin: 0 }}>{cargando ? '...' : quejas.length}</h3>
                                 </div>
                                 <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '10px', border: '1px solid #e2e8f0', borderLeft: '4px solid #0ea5e9', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-                                    <p style={{ fontSize: '0.85rem', fontWeight: '600', color: '#64748b', margin: '0 0 10px 0', textTransform: 'uppercase' }}>Pendientes de Firma</p>
+                                    <p style={{ fontSize: '0.85rem', fontWeight: '600', color: '#64748b', margin: '0 0 10px 0', textTransform: 'uppercase' }}>Pendientes de revisión</p>
                                     <h3 style={{ fontSize: '2.2rem', color: '#0f172a', margin: 0 }}>{cargando ? '...' : statsNuevas}</h3>
                                 </div>
                             </div>

@@ -1126,6 +1126,7 @@ public class QuejaControlador {
             emailServicio.enviarCorreoResolucionFinalConPdf(
                     queja.getUsuarioEmail(),
                     queja.getNumeroTicket(),
+                    queja.getEstado().getNombre(),
                     pdfFinal);
 
             return ResponseEntity.ok(java.util.Map.of("mensaje", "Correo y PDF enviados al cliente exitosamente."));

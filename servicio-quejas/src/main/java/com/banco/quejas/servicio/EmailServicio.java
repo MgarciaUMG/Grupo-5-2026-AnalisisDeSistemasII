@@ -113,7 +113,7 @@ public class EmailServicio {
         }
     }
 
-    public void enviarCorreoResolucionFinalConPdf(String destinatario, String numeroTicket, byte[] pdfAdjunto) {
+    public void enviarCorreoResolucionFinalConPdf(String destinatario, String numeroTicket, String estado, byte[] pdfAdjunto) {
         try {
             // Se utiliza MimeMessage para soportar correos con archivos adjuntos (multipart)
             MimeMessage mensaje = mailSender.createMimeMessage();
@@ -122,10 +122,11 @@ public class EmailServicio {
             // Configuración del correo
             helper.setFrom("bncnotify@outlook.com");
             helper.setTo(destinatario);
-            helper.setSubject("Resolución Final de Queja - Ticket: " + numeroTicket);
+            helper.setSubject("Resolución Final de Queja - Ticket: " + numeroTicket + " " + estado );
 
             helper.setText("Estimado cliente,\n\n" +
                     "Le informamos que el proceso de auditoría y revisión de su queja ha concluido.\n\n" +
+                    "Dando como resultado el estado: " + estado + ". \n\n"+
                     "Adjunto a este correo encontrará el dictamen oficial con la resolución final.\n\n " +
                     "Atentamente,\n" +
                     "Banco Capital Nacional, S.A. (BCN)");
