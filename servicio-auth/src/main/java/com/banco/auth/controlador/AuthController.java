@@ -3,8 +3,10 @@ package com.banco.auth.controlador;
 import com.banco.auth.dto.JwtDto;
 import com.banco.auth.dto.LoginUsuario;
 import com.banco.auth.modelo.Bitacora;
+import com.banco.auth.modelo.SolicitudActivacion;
 import com.banco.auth.modelo.Usuario;
 import com.banco.auth.repositorio.BitacoraRepositorio;
+import com.banco.auth.repositorio.SolicitudActivacionRepositorio;
 import com.banco.auth.repositorio.UsuarioRepositorio;
 import com.banco.auth.seguridad.JwtProvider;
 import jakarta.validation.Valid;
@@ -37,6 +39,9 @@ public class AuthController {
 
     @Autowired
     private BitacoraRepositorio bitacoraRepositorio;
+
+    @Autowired
+    private SolicitudActivacionRepositorio solicitudActivacionRepositorio;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginUsuario loginUsuario,
@@ -98,18 +103,39 @@ public class AuthController {
 
     // Endpoint del Flujo Alterno FA05: Solicitud de activación de usuario
     @PostMapping("/solicitar-activacion")
-    public ResponseEntity<?> solicitarActivacion(@RequestBody Map<String, String> request) {
-        String email = request.get("usuario");
-        String motivo = request.get("motivo");
+    public ResponseEntity<?> solicitarActivacion(@RequestBody Map<String, String> payload,
+            jakarta.servlet.http.HttpServletRequest request) {
+        String email = payload.get("usuario");
+        String motivo = payload.get("motivo");
 
-        // El sistema recibe la solicitud y simula el envío al administrador
-        System.out.println("NUEVA SOLICITUD DE ACTIVACIÓN RECIBIDA");
-        System.out.println("Usuario: " + email);
-        System.out.println("Motivo: " + motivo);
-        System.out.println("Enviando correo de solicitud al administrador...");
+        try {
+            // 1. REGISTRO 1: Mantenemos la inmutabilidad guardando en la Bitácora de
+            // Auditoría
+            Bitacora registro = new Bitacora(
+                    email,
+                    LocalDateTime.now(),
+                    "N/A", // El rol es irrelevante aquí porque la cuenta está inactiva
+                    "SOLICITUD_ACTIVACION: " + motivo,
+                    obtenerIpCliente(request));
+            bitacoraRepositorio.save(registro);
 
-        return ResponseEntity.ok(
-                Map.of("mensaje", "Solicitud de activación enviada al administrador con éxito."));
+            // 2. REGISTRO 2: APARTE, guardamos el estado PENDIENTE en la nueva tabla de
+            // gestión
+            SolicitudActivacion solicitud = new SolicitudActivacion(
+                    email,
+                    motivo,
+                    LocalDateTime.now(),
+                    "PENDIENTE");
+            solicitudActivacionRepositorio.save(solicitud);
+
+            System.out.println("Solicitud registrada en bitácora y guardada en la tabla de solicitudes para: " + email);
+        } catch (Exception e) {
+            System.err.println("Error procesando solicitud: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("mensaje", "Error interno al procesar la solicitud."));
+        }
+
+        return ResponseEntity.ok(Map.of("mensaje", "Solicitud de activación enviada al administrador con éxito."));
     }
 
     private String obtenerIpCliente(jakarta.servlet.http.HttpServletRequest request) {

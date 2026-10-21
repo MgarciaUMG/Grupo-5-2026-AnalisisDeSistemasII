@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -65,7 +66,10 @@ public class AdminControlador {
             List<Map<String, Object>> usuariosMapeados = usuariosBD.stream().map(u -> Map.<String, Object>of(
                     "id", u.getId(),
                     "email", u.getEmail() != null ? u.getEmail() : "",
-                    "rol", "SISTEMA",
+                    "nombreCompleto",
+                    (u.getNombre() != null ? u.getNombre() : "") + " "
+                            + (u.getApellido() != null ? u.getApellido() : ""),
+                    "rol", u.getRol() != null ? u.getRol().replace("ROLE_", "") : "SIN ROL",
                     "activo", u.getActivo() != null ? u.getActivo() : false)).collect(Collectors.toList());
 
             return ResponseEntity.ok(usuariosMapeados);
@@ -107,24 +111,57 @@ public class AdminControlador {
             }
 
             List<Map<String, Object>> logsQuejasList = new ArrayList<>();
-            List<BitacoraQueja> logsQuejas = bitacoraQuejaRepositorio.findAll();
-            for (BitacoraQueja bq : logsQuejas) {
-                logsQuejasList.add(Map.<String, Object>of(
-                        "id", "QJ-" + bq.getId(),
-                        "usuario", bq.getUsuarioEmail() != null ? bq.getUsuarioEmail() : "Desconocido",
-                        "rol", "N/A", // Las quejas no guardan el rol en su bitácora explícitamente
-                        "descripcion", bq.getDescripcionEvento() != null ? bq.getDescripcionEvento() : "",
-                        "fecha", bq.getFechaHora() != null ? bq.getFechaHora().toString() : "",
-                        "ip", bq.getDireccionIp() != null ? bq.getDireccionIp() : "Desconocida"));
+
+            // CORRECCIÓN: Ahora apuntamos a QuejaRepositorio en ambos lados
+            List<QuejaRepositorio.BitacoraQuejaDTO> logsQuejas = quejaRepositorio.obtenerBitacoraQuejas();
+
+            for (QuejaRepositorio.BitacoraQuejaDTO bq : logsQuejas) {
+                Map<String, Object> logMap = new HashMap<>();
+
+                logMap.put("id", bq.getId());
+                logMap.put("numeroTicket", bq.getNumeroTicket() != null ? bq.getNumeroTicket() : "");
+                logMap.put("usuario", bq.getUsuario() != null ? bq.getUsuario() : "Desconocido");
+                logMap.put("rol", "N/A"); // Las quejas no guardan el rol
+                logMap.put("descripcion", bq.getDescripcion() != null ? bq.getDescripcion() : "");
+                logMap.put("fecha", bq.getFecha() != null ? bq.getFecha().toString() : "");
+                logMap.put("ip", bq.getIp() != null ? bq.getIp() : "Desconocida");
+
+                logsQuejasList.add(logMap);
             }
 
+            // ==========================================
+            // 3. ORDENAMIENTO Y RETORNO
+            // ==========================================
             logsAuthList.sort((a, b) -> b.get("fecha").toString().compareTo(a.get("fecha").toString()));
+            // Ya no necesitas ordenar logsQuejasList aquí si ya le pusiste 'ORDER BY
+            // b.fecha_hora DESC' en tu SQL,
+            // pero lo dejamos por seguridad.
             logsQuejasList.sort((a, b) -> b.get("fecha").toString().compareTo(a.get("fecha").toString()));
 
             // Retornamos un objeto con dos arreglos distintos
             return ResponseEntity.ok(Map.of("auth", logsAuthList, "quejas", logsQuejasList));
+
         } catch (Exception e) {
+            e.printStackTrace(); // Recomendado para ver el error exacto en consola si algo falla
             return ResponseEntity.status(500).body("Error al cargar bitácoras.");
+        }
+    }
+
+    @GetMapping("/solicitudes")
+    public ResponseEntity<?> obtenerSolicitudes(@RequestHeader("Authorization") String authHeader) {
+        try {
+            List<Map<String, Object>> solicitudes = quejaRepositorio.listarSolicitudesPendientes().stream()
+                    .map(s -> Map.<String, Object>of(
+                            "id", s.getId(),
+                            "email", s.getEmail() != null ? s.getEmail() : "",
+                            "motivo", s.getMotivo() != null ? s.getMotivo() : "",
+                            "fecha", s.getFecha() != null ? s.getFecha().substring(0, 19).replace("T", " ") : ""))
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(solicitudes);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
         }
     }
 }

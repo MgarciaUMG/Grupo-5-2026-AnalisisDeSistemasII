@@ -5,10 +5,25 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
 public interface QuejaRepositorio extends JpaRepository<Queja, Long> {
+
+        public interface BitacoraQuejaDTO {
+                Long getId();
+
+                LocalDateTime getFecha(); // Mapea a AS fecha
+
+                String getNumeroTicket(); // Mapea a AS numeroTicket
+
+                String getUsuario(); // Mapea a AS usuario
+
+                String getDescripcion(); // Mapea a AS descripcion
+
+                String getIp(); // Mapea a AS ip
+        }
 
         // Para listar todas las quejas de un cliente en su dashboard
         List<Queja> findByUsuarioEmail(String usuarioEmail);
@@ -77,16 +92,24 @@ public interface QuejaRepositorio extends JpaRepository<Queja, Long> {
         @Query(value = "SELECT agente_asignado_email, COUNT(id) FROM quejas WHERE agente_asignado_email IS NOT NULL GROUP BY agente_asignado_email", nativeQuery = true)
         List<Object[]> contarQuejasPorUsuario();
 
-        // 1. Proyección y consulta para Usuarios
         public interface UsuarioAdminProyeccion {
                 String getId();
 
                 String getEmail();
 
+                String getNombre();
+
+                String getApellido();
+
+                String getRol();
+
                 Boolean getActivo();
         }
 
-        @Query(value = "SELECT CAST(id AS VARCHAR) as id, email, activo FROM usuarios", nativeQuery = true)
+        @Query(value = "SELECT CAST(u.id AS VARCHAR) as id, u.email, u.nombre, u.apellido, r.nombre as rol, u.activo " +
+                        "FROM usuarios u " +
+                        "LEFT JOIN usuario_roles ur ON u.id = ur.usuario_id " +
+                        "LEFT JOIN roles r ON ur.rol_id = r.id", nativeQuery = true)
         List<UsuarioAdminProyeccion> listarUsuariosAdmin();
 
         @org.springframework.data.jpa.repository.Modifying
@@ -114,4 +137,39 @@ public interface QuejaRepositorio extends JpaRepository<Queja, Long> {
 
         @Query(value = "SELECT usuario_email, COUNT(id) FROM quejas GROUP BY usuario_email", nativeQuery = true)
         List<Object[]> contarQuejasPorCliente();
+
+        @Query(value = """
+                        SELECT
+                            b.id,
+                            b.fecha_hora AS fecha,
+                            q.numero_ticket AS numeroTicket,
+                            b.usuario_email AS usuario,
+                            b.descripcion_evento AS descripcion,
+                            b.direccion_ip AS ip
+                        FROM bitacora_quejas b
+                        LEFT JOIN quejas q ON b.queja_id = q.id
+                        ORDER BY b.fecha_hora DESC
+                        """, nativeQuery = true)
+        List<BitacoraQuejaDTO> obtenerBitacoraQuejas();
+
+        public interface SolicitudProyeccion {
+                Long getId();
+
+                String getEmail();
+
+                String getMotivo();
+
+                String getFecha();
+        }
+
+        // Lee únicamente las pendientes de la tabla que creó servicio-auth
+        @Query(value = "SELECT id, email, motivo, CAST(fecha_hora AS VARCHAR) as fecha " +
+                        "FROM solicitudes_activacion WHERE estado = 'PENDIENTE' ORDER BY fecha_hora DESC", nativeQuery = true)
+        List<SolicitudProyeccion> listarSolicitudesPendientes();
+
+        @org.springframework.data.jpa.repository.Modifying
+        @org.springframework.transaction.annotation.Transactional
+        @Query(value = "UPDATE solicitudes_activacion SET estado = 'APROBADA' WHERE email = (SELECT email FROM usuarios WHERE id = CAST(:id AS uuid)) AND estado = 'PENDIENTE'", nativeQuery = true)
+        void aprobarSolicitudPorUsuarioId(@org.springframework.data.repository.query.Param("id") String id);
+
 }

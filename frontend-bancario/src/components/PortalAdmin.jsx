@@ -17,6 +17,9 @@ function PortalAdmin({ onLogout }) {
   const [logs, setLogs] = useState({ auth: [], quejas: [] });
   const [tabBitacora, setTabBitacora] = useState('auth');
   const [filtros, setFiltros] = useState({ usuario: '', rol: '', fecha: '', ticket: '' });
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [filtrosUsuarios, setFiltrosUsuarios] = useState({ texto: '', rol: '' });
+  const [tabUsuarios, setTabUsuarios] = useState('lista');
 
   const nombreParaMostrar = "Administrador del Sistema";
   const iniciales = "AD";
@@ -45,6 +48,8 @@ function PortalAdmin({ onLogout }) {
       } else if (vista === 'usuarios') {
         const res = await fetch('/api/quejas/admin/usuarios', { headers });
         if (res.ok) setUsuarios(await res.json());
+        const resSol = await fetch('/api/quejas/admin/solicitudes', { headers });
+        if (resSol.ok) setSolicitudes(await resSol.json());
       } else if (vista === 'bitacora') {
         const res = await fetch('/api/quejas/admin/bitacora', { headers });
         if (res.ok) setLogs(await res.json());
@@ -412,150 +417,498 @@ function PortalAdmin({ onLogout }) {
               </div>
             )}
 
-            {/* VISTA 2: USUARIOS */}
-            {vistaActiva === 'usuarios' && (
-              <div>
-                <h1 style={{ color: '#0f172a', fontSize: '1.8rem', marginTop: 0 }}>Gestión de Usuarios</h1>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                      <th style={{ padding: '15px' }}>Email</th>
-                      <th style={{ padding: '15px' }}>Rol</th>
-                      <th style={{ padding: '15px' }}>Estado</th>
-                      <th style={{ padding: '15px', textAlign: 'right' }}>Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {usuarios.map(user => (
-                      <tr key={user.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '15px' }}>{user.email}</td>
-                        <td style={{ padding: '15px' }}>{user.rol}</td>
-                        <td style={{ padding: '15px' }}>
-                          <span style={{ color: user.activo ? 'green' : 'red', fontWeight: 'bold' }}>
-                            {user.activo ? 'Activo' : 'Inactivo'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '15px', textAlign: 'right' }}>
-                          <button onClick={() => toggleEstadoUsuario(user.id)} style={{ padding: '6px 12px', background: user.activo ? '#ef4444' : '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                            {user.activo ? 'Desactivar' : 'Activar'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {/* VISTA 2: USUARIOS ULTRA PRO */}
+            {vistaActiva === 'usuarios' && (() => {
+              // Filtro en tiempo real para el catálogo general
+              const usuariosFiltrados = usuarios.filter(u => {
+                const matchTexto = (u.nombreCompleto + " " + u.email).toLowerCase().includes(filtrosUsuarios.texto.toLowerCase());
+                const matchRol = u.rol.toLowerCase().includes(filtrosUsuarios.rol.toLowerCase());
+                return matchTexto && matchRol;
+              });
 
-            {/* VISTA 3: BITÁCORA */}
+              return (
+                <div className="fade-in" style={{ padding: '10px 20px', backgroundColor: '#f8fafc', minHeight: '100vh', borderRadius: '12px' }}>
+
+                  {/* ENCABEZADO */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '30px' }}>
+                    <div>
+                      <h1 style={{ color: '#0f172a', fontSize: '2.2rem', margin: '0 0 5px 0', fontWeight: '800', letterSpacing: '-0.5px' }}>
+                        Gestión de Usuarios
+                      </h1>
+                      <p style={{ margin: 0, color: '#64748b', fontSize: '1rem' }}>Administración de accesos, roles y solicitudes de activación</p>
+                    </div>
+                  </div>
+
+                  {/* TABS DE NAVEGACIÓN ESTILO "PILL" */}
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+                    <button
+                      onClick={() => setTabUsuarios('lista')}
+                      style={{
+                        padding: '12px 24px', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem',
+                        background: tabUsuarios === 'lista' ? '#1e293b' : 'white',
+                        color: tabUsuarios === 'lista' ? 'white' : '#64748b',
+                        border: tabUsuarios === 'lista' ? 'none' : '1px solid #e2e8f0',
+                        borderRadius: '30px', boxShadow: tabUsuarios === 'lista' ? '0 4px 6px -1px rgba(0,0,0,0.1)' : 'none',
+                        transition: 'all 0.3s ease'
+                      }}>
+                      Catálogo de Usuarios
+                    </button>
+                    <button
+                      onClick={() => setTabUsuarios('solicitudes')}
+                      style={{
+                        padding: '12px 24px', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem',
+                        background: tabUsuarios === 'solicitudes' ? '#1e293b' : 'white',
+                        color: tabUsuarios === 'solicitudes' ? 'white' : '#64748b',
+                        border: tabUsuarios === 'solicitudes' ? 'none' : '1px solid #e2e8f0',
+                        borderRadius: '30px', boxShadow: tabUsuarios === 'solicitudes' ? '0 4px 6px -1px rgba(0,0,0,0.1)' : 'none',
+                        transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', gap: '10px'
+                      }}>
+                      Solicitudes de Activación
+                      {solicitudes.length > 0 && (
+                        <span style={{ background: '#ef4444', color: 'white', borderRadius: '50%', padding: '2px 8px', fontSize: '0.75rem', fontWeight: '800' }}>
+                          {solicitudes.length}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* PESTAÑA 1: CATÁLOGO DE USUARIOS */}
+                  {tabUsuarios === 'lista' && (
+                    <div className="fade-in">
+
+                      {/* BARRA DE FILTROS FLOTANTE PREMIUM */}
+                      <div style={{
+                        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px',
+                        marginBottom: '30px', background: 'white', padding: '24px', borderRadius: '16px',
+                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.02), 0 4px 6px -2px rgba(0,0,0,0.01)', border: '1px solid #f1f5f9'
+                      }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Buscar por Nombre o Email</label>
+                          <input
+                            type="text" placeholder="Ej. Juan Pérez" value={filtrosUsuarios.texto}
+                            onChange={(e) => setFiltrosUsuarios({ ...filtrosUsuarios, texto: e.target.value })}
+                            style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.95rem', outline: 'none', background: '#f8fafc', color: '#0f172a', transition: 'border-color 0.2s' }}
+                            onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filtrar por Rol</label>
+                          <select
+                            value={filtrosUsuarios.rol}
+                            onChange={(e) => setFiltrosUsuarios({ ...filtrosUsuarios, rol: e.target.value })}
+                            style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.95rem', outline: 'none', background: '#f8fafc', color: '#0f172a', cursor: 'pointer' }}>
+                            <option value="">Todos los Roles</option>
+                            <option value="ADMIN">Admin</option>
+                            <option value="GERENTE">Gerente</option>
+                            <option value="JEFE">Jefe</option>
+                            <option value="SUPERVISOR">Supervisor</option>
+                            <option value="AGENTE_BANCARIO">Agente Bancario</option>
+                            <option value="USUARIO_FINAL">Usuario Final</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* TABLA ULTRA PRO DE USUARIOS */}
+                      <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.05), 0 10px 10px -5px rgba(0,0,0,0.02)', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0', textAlign: 'left', minWidth: '800px' }}>
+                            <thead>
+                              <tr style={{ background: '#f8fafc' }}>
+                                <th style={{ padding: '18px 24px', color: '#475569', fontWeight: '700', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #e2e8f0' }}>Usuario</th>
+                                <th style={{ padding: '18px 24px', color: '#475569', fontWeight: '700', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #e2e8f0' }}>Rol del Sistema</th>
+                                <th style={{ padding: '18px 24px', color: '#475569', fontWeight: '700', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #e2e8f0' }}>Estado</th>
+                                <th style={{ padding: '18px 24px', textAlign: 'right', color: '#475569', fontWeight: '700', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #e2e8f0' }}>Acción</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {usuariosFiltrados.length === 0 ? (
+                                <tr>
+                                  <td colSpan="4" style={{ padding: '60px 20px', textAlign: 'center' }}>
+                                    <h3 style={{ color: '#1e293b', margin: '0 0 10px 0' }}>Sin resultados</h3>
+                                    <p style={{ color: '#64748b', margin: 0 }}>No se encontraron usuarios que coincidan con la búsqueda.</p>
+                                  </td>
+                                </tr>
+                              ) : (
+                                usuariosFiltrados.map(user => {
+                                  // Generador de Avatar con inicial
+                                  const inicial = user.nombreCompleto ? user.nombreCompleto.charAt(0).toUpperCase() : '?';
+                                  const coloresAvatares = ['linear-gradient(135deg, #3b82f6, #2563eb)', 'linear-gradient(135deg, #8b5cf6, #7c3aed)', 'linear-gradient(135deg, #10b981, #059669)', 'linear-gradient(135deg, #f59e0b, #d97706)', 'linear-gradient(135deg, #ec4899, #db2777)'];
+                                  const colorAvatar = coloresAvatares[user.nombreCompleto ? user.nombreCompleto.charCodeAt(0) % coloresAvatares.length : 0];
+
+                                  return (
+                                    <tr
+                                      key={user.id}
+                                      style={{ transition: 'all 0.2s ease', borderBottom: '1px solid #f1f5f9', backgroundColor: 'white' }}
+                                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.transform = 'scale(1.002)'; e.currentTarget.style.boxShadow = 'inset 4px 0 0 0 #3b82f6'; }}
+                                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'white'; e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none'; }}
+                                    >
+                                      {/* NOMBRE Y CORREO CON AVATAR */}
+                                      <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                          <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: colorAvatar, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '1rem', flexShrink: 0, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                                            {inicial}
+                                          </div>
+                                          <div>
+                                            <p style={{ margin: 0, fontWeight: '700', color: '#1e293b', fontSize: '0.95rem' }}>{user.nombreCompleto}</p>
+                                            <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>{user.email}</p>
+                                          </div>
+                                        </div>
+                                      </td>
+
+                                      {/* ROL */}
+                                      <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }}>
+                                        <span style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid #cbd5e1', color: '#475569', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '700', letterSpacing: '0.5px', background: 'white' }}>
+                                          {user.rol}
+                                        </span>
+                                      </td>
+
+                                      {/* ESTADO */}
+                                      <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }}>
+                                        <span style={{ color: user.activo ? '#15803d' : '#b91c1c', background: user.activo ? '#dcfce7' : '#fee2e2', padding: '6px 14px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                          {user.activo ? '● Activo' : '● Inactivo'}
+                                        </span>
+                                      </td>
+
+                                      {/* ACCIÓN */}
+                                      <td style={{ padding: '16px 24px', textAlign: 'right', borderBottom: '1px solid #f1f5f9' }}>
+                                        <button
+                                          onClick={() => toggleEstadoUsuario(user.id)}
+                                          style={{
+                                            padding: '8px 16px',
+                                            background: user.activo ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                            color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '0.85rem',
+                                            boxShadow: user.activo ? '0 2px 4px rgba(239, 68, 68, 0.2)' : '0 2px 4px rgba(16, 185, 129, 0.2)',
+                                            transition: 'all 0.2s ease'
+                                          }}
+                                          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+                                          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                                        >
+                                          {user.activo ? 'Desactivar' : 'Activar'}
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PESTAÑA 2: SOLICITUDES DE ACTIVACIÓN */}
+                  {tabUsuarios === 'solicitudes' && (
+                    <div className="fade-in">
+                      {solicitudes.length === 0 ? (
+                        <div style={{ padding: '60px 20px', textAlign: 'center', background: 'white', borderRadius: '16px', border: '1px dashed #cbd5e1', color: '#64748b', fontWeight: '600', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
+                          <p style={{ margin: 0, fontSize: '1rem' }}>No hay solicitudes de activación pendientes en este momento.</p>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'grid', gap: '20px' }}>
+                          {solicitudes.map((sol, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                background: 'white', padding: '24px', borderRadius: '16px',
+                                border: '1px solid #e2e8f0', borderLeft: '6px solid #f59e0b',
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)',
+                                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.05)'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.02)'; }}
+                            >
+                              <div>
+                                <p style={{ margin: '0 0 6px 0', fontWeight: '800', color: '#0f172a', fontSize: '1.1rem' }}>{sol.email}</p>
+                                <p style={{ margin: '4px 0', color: '#475569', fontSize: '0.95rem' }}><strong style={{ color: '#1e293b' }}>Motivo de solicitud:</strong> {sol.motivo}</p>
+                                <p style={{ margin: '6px 0 0 0', color: '#94a3b8', fontSize: '0.8rem', fontWeight: '600' }}>Enviado el: {sol.fecha}</p>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  await toggleEstadoUsuario(sol.id);
+                                  // setTabUsuarios('lista'); 
+                                }}
+                                style={{
+                                  padding: '12px 24px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white',
+                                  border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer',
+                                  boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.2)', transition: 'all 0.2s ease', whiteSpace: 'nowrap'
+                                }}
+                                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(16, 185, 129, 0.3)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(16, 185, 129, 0.2)'; }}
+                              >
+                                Aprobar y Activar
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* VISTA 3: BITÁCORA ULTRA PRO */}
             {vistaActiva === 'bitacora' && (() => {
               const listaActiva = tabBitacora === 'auth' ? (logs.auth || []) : (logs.quejas || []);
 
               const logsFiltrados = listaActiva.filter(log => {
-                const matchUsuario = log.usuario.toLowerCase().includes(filtros.usuario.toLowerCase());
-                const matchRol = log.rol.toLowerCase().includes(filtros.rol.toLowerCase());
-                const matchFecha = log.fecha.includes(filtros.fecha);
-                const matchTicket = tabBitacora === 'quejas' ? log.id.toLowerCase().includes(filtros.ticket.toLowerCase()) : true;
+                const matchUsuario = log.usuario?.toLowerCase().includes(filtros.usuario.toLowerCase());
+                const matchRol = log.rol?.toLowerCase().includes(filtros.rol.toLowerCase());
+                const matchFecha = log.fecha?.includes(filtros.fecha);
+
+                // Busca en todas las variaciones posibles del nombre de la propiedad
+                const ticketReferencia = log.numeroTicket || log.numero_ticket || log.ticket || log.id || '';
+                const matchTicket = tabBitacora === 'quejas' ? ticketReferencia.toString().toLowerCase().includes(filtros.ticket.toLowerCase()) : true;
+
                 return matchUsuario && matchRol && matchFecha && matchTicket;
               });
 
               return (
-                <div className="fade-in">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h1 style={{ color: '#0f172a', fontSize: '1.8rem', margin: 0 }}>Bitácora de Auditoría</h1>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <button onClick={exportarBitacoraCSV} style={{ padding: '8px 16px', background: '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-                        📊 Exportar CSV
+                <div className="fade-in" style={{ padding: '10px 20px', backgroundColor: '#f8fafc', minHeight: '100vh', borderRadius: '12px' }}>
+
+                  {/* ENCABEZADO Y BOTONES DE EXPORTACIÓN */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '30px', flexWrap: 'wrap', gap: '20px' }}>
+                    <div>
+                      <h1 style={{ color: '#0f172a', fontSize: '2.2rem', margin: '0 0 5px 0', fontWeight: '800', letterSpacing: '-0.5px' }}>
+                        Bitácora de Auditoría
+                      </h1>
+                      <p style={{ margin: 0, color: '#64748b', fontSize: '1rem' }}>Registro histórico detallado de transacciones y seguridad</p>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button
+                        onClick={exportarBitacoraCSV}
+                        style={{
+                          padding: '10px 20px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white', border: 'none',
+                          borderRadius: '8px', cursor: 'pointer', fontWeight: '600', boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.2)', transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(16, 185, 129, 0.3)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(16, 185, 129, 0.2)'; }}
+                      >
+                        Exportar CSV
                       </button>
-                      <button onClick={exportarBitacoraPDF} style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-                        📄 Exportar PDF
+                      <button
+                        onClick={exportarBitacoraPDF}
+                        style={{
+                          padding: '10px 20px', background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: 'white', border: 'none',
+                          borderRadius: '8px', cursor: 'pointer', fontWeight: '600', boxShadow: '0 4px 6px -1px rgba(239, 68, 68, 0.2)', transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(239, 68, 68, 0.3)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(239, 68, 68, 0.2)'; }}
+                      >
+                        Exportar PDF
                       </button>
                     </div>
                   </div>
 
-                  {/* TABS DE NAVEGACIÓN */}
-                  <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>
+                  {/* TABS DE NAVEGACIÓN ESTILO "PILL" */}
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
                     <button
                       onClick={() => { setTabBitacora('auth'); setFiltros({ usuario: '', rol: '', fecha: '', ticket: '' }); }}
-                      style={{ padding: '10px 20px', fontWeight: 'bold', cursor: 'pointer', background: tabBitacora === 'auth' ? '#0f172a' : 'transparent', color: tabBitacora === 'auth' ? 'white' : '#64748b', border: 'none', borderRadius: '6px' }}>
-                      Bitácora de Accesos (Usuarios)
+                      style={{
+                        padding: '12px 24px', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem',
+                        background: tabBitacora === 'auth' ? '#1e293b' : 'white',
+                        color: tabBitacora === 'auth' ? 'white' : '#64748b',
+                        border: tabBitacora === 'auth' ? 'none' : '1px solid #e2e8f0',
+                        borderRadius: '30px', boxShadow: tabBitacora === 'auth' ? '0 4px 6px -1px rgba(0,0,0,0.1)' : 'none',
+                        transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', gap: '8px'
+                      }}>
+                      Accesos y Seguridad
                     </button>
                     <button
                       onClick={() => { setTabBitacora('quejas'); setFiltros({ usuario: '', rol: '', fecha: '', ticket: '' }); }}
-                      style={{ padding: '10px 20px', fontWeight: 'bold', cursor: 'pointer', background: tabBitacora === 'quejas' ? '#0f172a' : 'transparent', color: tabBitacora === 'quejas' ? 'white' : '#64748b', border: 'none', borderRadius: '6px' }}>
-                      Bitácora de Operaciones (Quejas)
+                      style={{
+                        padding: '12px 24px', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem',
+                        background: tabBitacora === 'quejas' ? '#1e293b' : 'white',
+                        color: tabBitacora === 'quejas' ? 'white' : '#64748b',
+                        border: tabBitacora === 'quejas' ? 'none' : '1px solid #e2e8f0',
+                        borderRadius: '30px', boxShadow: tabBitacora === 'quejas' ? '0 4px 6px -1px rgba(0,0,0,0.1)' : 'none',
+                        transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', gap: '8px'
+                      }}>
+                      Trazabilidad de Quejas
                     </button>
                   </div>
 
-                  {/* BARRA DE FILTROS DINÁMICA */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '20px', background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-
-                    {/* Filtro Ticket (Solo visible en Quejas) */}
+                  {/* BARRA DE FILTROS FLOTANTE PREMIUM */}
+                  <div style={{
+                    display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px',
+                    marginBottom: '30px', background: 'white', padding: '24px', borderRadius: '16px',
+                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.02), 0 4px 6px -2px rgba(0,0,0,0.01)', border: '1px solid #f1f5f9'
+                  }}>
                     {tabBitacora === 'quejas' && (
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', marginBottom: '5px' }}>N° de Ticket</label>
-                        <div style={{ display: 'flex', alignItems: 'center', background: 'white', border: '1px solid #cbd5e1', borderRadius: '4px', overflow: 'hidden' }}>
-                          <span style={{ padding: '8px 12px', background: '#e2e8f0', color: '#475569', fontWeight: 'bold', borderRight: '1px solid #cbd5e1' }}>QJ-</span>
-                          <input
-                            type="text"
-                            placeholder="12345..."
-                            value={filtros.ticket}
-                            onChange={(e) => setFiltros({ ...filtros, ticket: e.target.value })}
-                            style={{ width: '100%', padding: '8px', border: 'none', outline: 'none' }}
-                          />
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>N° de Ticket</label>
+                        <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
+                          <input type="text" placeholder="Buscar..." value={filtros.ticket} onChange={(e) => setFiltros({ ...filtros, ticket: e.target.value })} style={{ width: '100%', padding: '10px 14px', border: 'none', outline: 'none', fontSize: '0.95rem', background: 'transparent', color: '#0f172a' }} />
                         </div>
                       </div>
                     )}
-
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', marginBottom: '5px' }}>Filtrar por Usuario (Email)</label>
-                      <input type="text" placeholder="Ej. jperez@banco.com" value={filtros.usuario} onChange={(e) => setFiltros({ ...filtros, usuario: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Usuario o Email</label>
+                      <input type="text" placeholder="Ej. jperez@banco.com" value={filtros.usuario} onChange={(e) => setFiltros({ ...filtros, usuario: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.95rem', outline: 'none', background: '#f8fafc', color: '#0f172a', transition: 'border-color 0.2s' }} onFocus={(e) => e.target.style.borderColor = '#3b82f6'} onBlur={(e) => e.target.style.borderColor = '#e2e8f0'} />
                     </div>
-
-                    {/* Filtro Rol (Solo visible en Auth) */}
                     {tabBitacora === 'auth' && (
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', marginBottom: '5px' }}>Filtrar por Rol</label>
-                        <input type="text" placeholder="Ej. ROLE_AGENTE" value={filtros.rol} onChange={(e) => setFiltros({ ...filtros, rol: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Rol del Sistema</label>
+                        <input type="text" placeholder="Ej. ROLE_ADMIN" value={filtros.rol} onChange={(e) => setFiltros({ ...filtros, rol: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.95rem', outline: 'none', background: '#f8fafc', color: '#0f172a' }} />
                       </div>
                     )}
-
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#64748b', marginBottom: '5px' }}>Filtrar por Fecha</label>
-                      <input type="date" value={filtros.fecha} onChange={(e) => setFiltros({ ...filtros, fecha: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fecha Específica</label>
+                      <input type="date" value={filtros.fecha} onChange={(e) => setFiltros({ ...filtros, fecha: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.95rem', outline: 'none', background: '#f8fafc', color: '#0f172a', fontFamily: 'inherit' }} />
                     </div>
                   </div>
 
-                  {/* TABLA DE RESULTADOS */}
-                  <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '2px solid #e2e8f0', background: '#f1f5f9' }}>
-                          {tabBitacora === 'quejas' && <th style={{ padding: '12px' }}>Ticket</th>}
-                          <th style={{ padding: '12px' }}>Fecha y Hora</th>
-                          <th style={{ padding: '12px' }}>Usuario</th>
-                          {tabBitacora === 'auth' && <th style={{ padding: '12px' }}>Rol</th>}
-                          <th style={{ padding: '12px' }}>Acción Registrada</th>
-                          <th style={{ padding: '12px' }}>Dirección IP</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {logsFiltrados.length === 0 ? (
-                          <tr><td colSpan="6" style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>No se encontraron registros que coincidan con la búsqueda.</td></tr>
-                        ) : (
-                          logsFiltrados.map((log, index) => (
-                            <tr key={index} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                              {tabBitacora === 'quejas' && <td style={{ padding: '12px', fontWeight: 'bold' }}>{log.id}</td>}
-                              <td style={{ padding: '12px', color: '#475569' }}>{log.fecha.substring(0, 19).replace('T', ' ')}</td>
-                              <td style={{ padding: '12px', fontWeight: '600', color: '#0ea5e9' }}>{log.usuario}</td>
-                              {tabBitacora === 'auth' && <td style={{ padding: '12px' }}><span style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px', fontSize: '0.8rem' }}>{log.rol}</span></td>}
-                              <td style={{ padding: '12px', color: '#334155' }}>{log.descripcion}</td>
-                              <td style={{ padding: '12px', color: '#94a3b8', fontSize: '0.8rem' }}>{log.ip}</td>
+                  {/* TABLA ULTRA PRO DE RESULTADOS */}
+                  <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.05), 0 10px 10px -5px rgba(0,0,0,0.02)', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0', textAlign: 'left', minWidth: '900px' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc' }}>
+                            {tabBitacora === 'quejas' && <th style={{ padding: '18px 24px', color: '#475569', fontWeight: '700', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #e2e8f0' }}>Ticket Relacionado</th>}
+                            <th style={{ padding: '18px 24px', color: '#475569', fontWeight: '700', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #e2e8f0' }}>Usuario</th>
+                            <th style={{ padding: '18px 24px', color: '#475569', fontWeight: '700', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #e2e8f0' }}>Fecha y Hora</th>
+                            {tabBitacora === 'auth' && <th style={{ padding: '18px 24px', color: '#475569', fontWeight: '700', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #e2e8f0' }}>Nivel de Acceso</th>}
+                            <th style={{ padding: '18px 24px', color: '#475569', fontWeight: '700', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #e2e8f0' }}>Acción Auditada</th>
+                            <th style={{ padding: '18px 24px', color: '#475569', fontWeight: '700', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #e2e8f0' }}>Origen (IP)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {logsFiltrados.length === 0 ? (
+                            <tr>
+                              <td colSpan="6" style={{ padding: '60px 20px', textAlign: 'center' }}>
+                                <h3 style={{ color: '#1e293b', margin: '0 0 10px 0' }}>Sin resultados</h3>
+                                <p style={{ color: '#64748b', margin: 0 }}>No se encontraron registros en la bitácora con estos filtros.</p>
+                              </td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                          ) : (
+                            logsFiltrados.map((log, index) => {
+                              // --- LÓGICA DE ESTILOS DINÁMICOS ---
+                              const [fechaPart, horaPart] = log.fecha ? log.fecha.substring(0, 19).split('T') : ['Desconocido', ''];
+
+                              const inicial = log.usuario ? log.usuario.charAt(0).toUpperCase() : '?';
+                              const coloresAvatares = ['linear-gradient(135deg, #3b82f6, #2563eb)', 'linear-gradient(135deg, #8b5cf6, #7c3aed)', 'linear-gradient(135deg, #10b981, #059669)', 'linear-gradient(135deg, #f59e0b, #d97706)', 'linear-gradient(135deg, #ec4899, #db2777)'];
+                              const colorAvatar = coloresAvatares[log.usuario ? log.usuario.charCodeAt(0) % coloresAvatares.length : 0];
+
+                              const descLower = log.descripcion ? log.descripcion.toLowerCase() : '';
+                              let badgeAccion = { bg: '#f1f5f9', text: '#475569' };
+
+                              if (descLower.includes('inició') || descLower.includes('cre') || descLower.includes('aprob')) {
+                                badgeAccion = { bg: '#dcfce7', text: '#15803d' };
+                              } else if (descLower.includes('fall') || descLower.includes('error') || descLower.includes('deneg') || descLower.includes('elimin')) {
+                                badgeAccion = { bg: '#fee2e2', text: '#b91c1c' };
+                              } else if (descLower.includes('actualiz') || descLower.includes('modific') || descLower.includes('cambi')) {
+                                badgeAccion = { bg: '#e0f2fe', text: '#0369a1' };
+                              } else if (descLower.includes('asign') || descLower.includes('proces')) {
+                                badgeAccion = { bg: '#fef3c7', text: '#b45309' };
+                              }
+
+                              // LÓGICA DE DETECCIÓN DE TICKET FALL LOUDLY
+                              // Busca todas las combinaciones posibles. Si ninguna existe, lanza la advertencia visual.
+                              const ticketValidado = log.numeroTicket || log.numero_ticket || log.ticket;
+
+                              return (
+                                <tr
+                                  key={index}
+                                  style={{ transition: 'all 0.2s ease', borderBottom: '1px solid #f1f5f9', backgroundColor: 'white' }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = '#f8fafc';
+                                    e.currentTarget.style.transform = 'scale(1.002)';
+                                    e.currentTarget.style.boxShadow = 'inset 4px 0 0 0 #3b82f6';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'white';
+                                    e.currentTarget.style.transform = 'scale(1)';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                  }}
+                                >
+                                  {/* CELDA DEL TICKET INTELIGENTE */}
+                                  {tabBitacora === 'quejas' && (
+                                    <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
+                                      {ticketValidado ? (
+                                        <span style={{ fontWeight: '800', color: '#0ea5e9', background: '#e0f2fe', padding: '6px 12px', borderRadius: '8px', border: '1px solid #bae6fd', letterSpacing: '0.5px', fontFamily: 'monospace', fontSize: '0.95rem' }}>
+                                          {ticketValidado}
+                                        </span>
+                                      ) : (
+                                        <span style={{ fontWeight: '800', color: '#b91c1c', background: '#fee2e2', padding: '6px 12px', borderRadius: '8px', border: '1px solid #fca5a5', fontSize: '0.85rem' }}>
+                                          ERROR: Falta numeroTicket en JSON (ID:{log.id})
+                                        </span>
+                                      )}
+                                    </td>
+                                  )}
+
+                                  {/* USUARIO */}
+                                  <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                      <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: colorAvatar, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '1rem', flexShrink: 0, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                                        {inicial}
+                                      </div>
+                                      <div>
+                                        <p style={{ margin: 0, fontWeight: '700', color: '#1e293b', fontSize: '0.95rem' }}>{log.usuario}</p>
+                                        {tabBitacora === 'quejas' && log.rol && log.rol !== 'N/A' && (
+                                          <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>{log.rol}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* FECHA APILADA */}
+                                  <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                      <span style={{ fontWeight: '700', color: '#334155', fontSize: '0.9rem' }}>{fechaPart}</span>
+                                      <span style={{ color: '#64748b', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                                        {horaPart}
+                                      </span>
+                                    </div>
+                                  </td>
+
+                                  {/* ROL */}
+                                  {tabBitacora === 'auth' && (
+                                    <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid #cbd5e1', color: '#475569', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '700', letterSpacing: '0.5px', background: 'white' }}>
+                                        {log.rol}
+                                      </span>
+                                    </td>
+                                  )}
+
+                                  {/* ACCIÓN COMPACTA */}
+                                  <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }}>
+                                    <div style={{ maxWidth: '280px', whiteSpace: 'normal', lineHeight: '1.4' }}>
+                                      <span style={{ background: badgeAccion.bg, color: badgeAccion.text, padding: '6px 12px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', display: 'inline-flex', alignItems: 'flex-start', gap: '6px', border: `1px solid ${badgeAccion.text}20`, wordBreak: 'break-word' }}>
+                                        <span>{log.descripcion}</span>
+                                      </span>
+                                    </div>
+                                  </td>
+
+                                  {/* IP */}
+                                  <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <span style={{ fontFamily: '"Fira Code", "Courier New", monospace', background: '#f8fafc', padding: '4px 8px', borderRadius: '6px', fontSize: '0.85rem', color: '#475569', border: '1px solid #e2e8f0', fontWeight: '600' }}>
+                                        {log.ip}
+                                      </span>
+                                    </div>
+                                  </td>
+
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* FOOTER DE TABLA */}
+                    {logsFiltrados.length > 0 && (
+                      <div style={{ padding: '16px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ color: '#64748b', fontSize: '0.85rem', fontWeight: '600' }}>Mostrando <strong style={{ color: '#0f172a' }}>{logsFiltrados.length}</strong> registros encontrados</span>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button disabled style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f1f5f9', color: '#94a3b8', cursor: 'not-allowed', fontWeight: 'bold' }}>Anterior</button>
+                          <button disabled style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f1f5f9', color: '#94a3b8', cursor: 'not-allowed', fontWeight: 'bold' }}>Siguiente</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

@@ -1110,22 +1110,73 @@ public class QuejaControlador {
             String emailGerente = extraerEmailDelToken(authHeader);
             String observaciones = payload.get("observaciones");
 
-            Queja queja = quejaServicio.obtenerQuejaPorTicket(numeroTicket);
-            EstadoQueja estadoDevuelto = estadoQuejaRepositorio.findByNombre("DevueltaParaRevision"); // Estado hacia el
-                                                                                                      // Agente
+            // Validar observaciones
+            if (observaciones == null || observaciones.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(java.util.Map.of("mensaje",
+                                "Debe ingresar un motivo para devolver la queja."));
+            }
 
-            queja.setEstado(estadoDevuelto);
+            // Obtener la queja
+            Queja queja = quejaServicio.obtenerQuejaPorTicket(numeroTicket);
+
+            if (queja == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // Capturar el estado anterior ANTES de modificar la queja
+            String estadoAnterior = queja.getEstado().getNombre();
+
+            // Obtener el nuevo estado
+            EstadoQueja estadoNuevo = estadoQuejaRepositorio
+                    .findByNombre("DevueltaParaRevision");
+
+            if (estadoNuevo == null) {
+                return ResponseEntity.status(500)
+                        .body(java.util.Map.of("mensaje",
+                                "No se encontró el estado DevueltaParaRevision."));
+            }
+
+            // Actualizar estado de la queja
+            queja.setEstado(estadoNuevo);
             quejaRepositorio.save(queja);
 
+            // Registrar en bitácora
+            String ipCliente = obtenerIpCliente(request);
+
+            com.banco.quejas.modelo.BitacoraQueja bitacora = new com.banco.quejas.modelo.BitacoraQueja(
+                    emailGerente,
+                    queja.getId(),
+                    estadoAnterior,
+                    estadoNuevo.getNombre(),
+                    "Dictamen cancelado desde Gerencia. "
+                            + "Corregir y escalar de nuevo: "
+                            + observaciones,
+                    java.time.LocalDateTime.now(),
+                    ipCliente);
+
+            bitacoraQuejaRepositorio.save(bitacora);
+
+            // Registrar mensaje interno
             MensajeQueja mensajeRechazo = new MensajeQueja(
-                    queja, emailGerente, "GERENTE",
-                    "Dictamen cancelado desde Gerencia. Corregir y escalar de nuevo: " + observaciones,
+                    queja,
+                    emailGerente,
+                    "GERENTE",
+                    "Dictamen cancelado desde Gerencia. "
+                            + "Corregir y escalar de nuevo: "
+                            + observaciones,
                     java.time.LocalDateTime.now());
+
             mensajeQuejaRepositorio.save(mensajeRechazo);
 
-            return ResponseEntity.ok(java.util.Map.of("mensaje", "La queja fue regresada al equipo de agentes."));
+            return ResponseEntity.ok(
+                    java.util.Map.of(
+                            "mensaje",
+                            "La queja fue regresada al equipo de agentes."));
+
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error: " + e.getMessage());
+            return ResponseEntity.status(500)
+                    .body("Error interno: " + e.getMessage());
         }
     }
 
