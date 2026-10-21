@@ -160,16 +160,33 @@ public interface QuejaRepositorio extends JpaRepository<Queja, Long> {
                 String getMotivo();
 
                 String getFecha();
+
+                String getUsuarioId();
         }
 
         // Lee únicamente las pendientes de la tabla que creó servicio-auth
-        @Query(value = "SELECT id, email, motivo, CAST(fecha_hora AS VARCHAR) as fecha " +
-                        "FROM solicitudes_activacion WHERE estado = 'PENDIENTE' ORDER BY fecha_hora DESC", nativeQuery = true)
+        @Query(value = "SELECT s.id, s.email, s.motivo, CAST(s.fecha_hora AS VARCHAR) as fecha, CAST(u.id AS VARCHAR) as usuarioId "
+                        +
+                        "FROM solicitudes_activacion s " +
+                        "INNER JOIN usuarios u ON s.email = u.email " +
+                        "WHERE s.estado = 'PENDIENTE' ORDER BY s.fecha_hora DESC", nativeQuery = true)
         List<SolicitudProyeccion> listarSolicitudesPendientes();
 
         @org.springframework.data.jpa.repository.Modifying
         @org.springframework.transaction.annotation.Transactional
         @Query(value = "UPDATE solicitudes_activacion SET estado = 'APROBADA' WHERE email = (SELECT email FROM usuarios WHERE id = CAST(:id AS uuid)) AND estado = 'PENDIENTE'", nativeQuery = true)
         void aprobarSolicitudPorUsuarioId(@org.springframework.data.repository.query.Param("id") String id);
+
+        @org.springframework.data.jpa.repository.Modifying
+        @org.springframework.transaction.annotation.Transactional
+        @Query(value = "INSERT INTO bitacora_auditoria (usuario, fecha_hora, rol, accion, direccion_ip) " +
+                        "SELECT :adminEmail, CURRENT_TIMESTAMP, 'ADMIN', " +
+                        "CASE WHEN activo = true THEN 'ACTIVACION_CUENTA: Se aprobó y activó al usuario ' || email " +
+                        "ELSE 'DESACTIVACION_CUENTA: Se inhabilitó al usuario ' || email END, " +
+                        ":ip FROM usuarios WHERE id = CAST(:usuarioId AS uuid)", nativeQuery = true)
+        void registrarCambioEstadoAuditoria(
+                        @org.springframework.data.repository.query.Param("adminEmail") String adminEmail,
+                        @org.springframework.data.repository.query.Param("usuarioId") String usuarioId,
+                        @org.springframework.data.repository.query.Param("ip") String ip);
 
 }

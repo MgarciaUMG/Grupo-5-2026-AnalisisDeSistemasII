@@ -626,8 +626,7 @@ function PortalAdmin({ onLogout }) {
                               </div>
                               <button
                                 onClick={async () => {
-                                  await toggleEstadoUsuario(sol.id);
-                                  // setTabUsuarios('lista'); 
+                                  await toggleEstadoUsuario(sol.usuarioId);
                                 }}
                                 style={{
                                   padding: '12px 24px', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: 'white',

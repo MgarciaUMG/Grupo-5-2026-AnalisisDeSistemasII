@@ -80,15 +80,25 @@ public class AdminControlador {
 
     @PutMapping("/usuarios/{id}/toggle-estado")
     public ResponseEntity<?> cambiarEstadoUsuario(@PathVariable String id,
-            @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader,
+            jakarta.servlet.http.HttpServletRequest request) {
         try {
-            int actualizados = quejaRepositorio.toggleEstadoUsuario(id);
-            if (actualizados == 0)
-                return ResponseEntity.notFound().build();
+            int filas = quejaRepositorio.toggleEstadoUsuario(id);
+
+            if (filas > 0) {
+                quejaRepositorio.aprobarSolicitudPorUsuarioId(id);
+
+                String adminEmail = extraerEmailDelToken(authHeader);
+                String ip = request.getRemoteAddr();
+                if (ip == null || ip.isEmpty())
+                    ip = "0.0.0.0";
+
+                quejaRepositorio.registrarCambioEstadoAuditoria(adminEmail, id, ip);
+            }
 
             return ResponseEntity.ok(Map.of("mensaje", "Estado del usuario actualizado exitosamente."));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error al actualizar estado del usuario.");
+            return ResponseEntity.status(500).body("Error al actualizar estado del usuario." + e.getMessage());
         }
     }
 
@@ -155,7 +165,8 @@ public class AdminControlador {
                             "id", s.getId(),
                             "email", s.getEmail() != null ? s.getEmail() : "",
                             "motivo", s.getMotivo() != null ? s.getMotivo() : "",
-                            "fecha", s.getFecha() != null ? s.getFecha().substring(0, 19).replace("T", " ") : ""))
+                            "fecha", s.getFecha() != null ? s.getFecha().substring(0, 19).replace("T", " ") : "",
+                            "usuarioId", s.getUsuarioId() != null ? s.getUsuarioId() : ""))
                     .collect(Collectors.toList());
 
             return ResponseEntity.ok(solicitudes);
@@ -163,5 +174,32 @@ public class AdminControlador {
             e.printStackTrace();
             return ResponseEntity.status(500).build();
         }
+    }
+
+    private String extraerEmailDelToken(String authHeader) {
+        try {
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                String token = authHeader.substring(7);
+                String[] partes = token.split("\\."); // El JWT tiene 3 partes separadas por punto
+
+                if (partes.length == 3) {
+                    // Decodificamos la segunda parte (el payload)
+                    String payloadJson = new String(java.util.Base64.getUrlDecoder().decode(partes[1]));
+                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    com.fasterxml.jackson.databind.JsonNode payload = mapper.readTree(payloadJson);
+
+                    // Retornamos el "sub" (subject) o "email" según como lo genere tu servicio de
+                    // auth
+                    if (payload.has("sub")) {
+                        return payload.get("sub").asText();
+                    } else if (payload.has("email")) {
+                        return payload.get("email").asText();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("No se pudo extraer el email del token: " + e.getMessage());
+        }
+        return "ADMIN_DESCONOCIDO"; // Valor por defecto si el token es inválido o no trae el dato
     }
 }
