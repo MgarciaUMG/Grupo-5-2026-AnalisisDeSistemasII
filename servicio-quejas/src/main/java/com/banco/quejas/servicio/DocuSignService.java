@@ -46,7 +46,6 @@ public class DocuSignService {
         documento.setFileExtension("pdf");
         documento.setDocumentId("1");
         envelopeDefinition.setDocuments(Collections.singletonList(documento));
-        
 
         // 2. Configurar el firmante (Signer)
         Signer firmante = new Signer();
@@ -145,6 +144,96 @@ public class DocuSignService {
 
         // "1" es el documentId que le asignamos cuando lo subimos
         return envelopesApi.getDocument(accountId, envelopeId, "1");
+    }
+
+    public java.util.Map<String, String> generarUrlDeFirmaGerente(String usuarioId, String nombre, String email,
+            byte[] pdfBytes, String numeroTicket, String rutaRetorno, String comentariosGerente)
+            throws Exception {
+
+        ApiClient apiClient = autenticarDocuSign();
+        EnvelopesApi envelopesApi = new EnvelopesApi(apiClient);
+
+        EnvelopeDefinition envelopeDefinition = new EnvelopeDefinition();
+        envelopeDefinition.setEmailSubject("Firma requerida: Resolución del Ticket " + numeroTicket);
+
+        // Documento PDF de prueba en Base64
+        String pdfBase64 = Base64.getEncoder().encodeToString(pdfBytes);
+
+        Document documento = new Document();
+        documento.setDocumentBase64(pdfBase64);
+        documento.setName("Resolucion_" + numeroTicket);
+        documento.setFileExtension("pdf");
+        documento.setDocumentId("1");
+        envelopeDefinition.setDocuments(Collections.singletonList(documento));
+
+        // 2. Configurar el firmante (Signer)
+        Signer firmante = new Signer();
+        firmante.setEmail(email);
+        firmante.setName(nombre);
+        firmante.setRecipientId("1");
+
+        // CRUCIAL: clientUserId convierte la firma en "Embebida"
+        firmante.setClientUserId(usuarioId);
+
+        SignHere signHere = new SignHere();
+        signHere.setDocumentId("1");
+        signHere.setRecipientId("1"); // <-- ¡NUEVO! Le dice a DocuSign que esta firma es obligatoria para este gerente
+        signHere.setAnchorString("Gerente");
+        signHere.setAnchorYOffset("-30");
+        signHere.setTabLabel("FirmaDelGerente"); // <-- ¡NUEVO! Identificador único interno
+
+        // ---- CONFIGURACIÓN DE ETIQUETA DE TEXTO ----
+        Text textComentarios = new Text();
+        textComentarios.setDocumentId("1"); // <-- ¡NUEVO! Lo ancla al documento
+        textComentarios.setRecipientId("1"); // <-- ¡NUEVO! Lo ancla al gerente
+        textComentarios.setAnchorString("Gerente");
+        textComentarios.setAnchorYOffset("25");
+        textComentarios.setAnchorXOffset("-120");
+        textComentarios.setWidth("350");
+        textComentarios.setHeight("60");
+        textComentarios.setValue(comentariosGerente);
+        textComentarios.setLocked("true");
+        textComentarios.setFont("helvetica");
+        textComentarios.setFontSize("size12");
+        textComentarios.setBold("true");
+
+        Tabs tabs = new Tabs();
+        tabs.setTextTabs(Collections.singletonList(textComentarios));
+        tabs.setSignHereTabs(Collections.singletonList(signHere));
+
+        firmante.setTabs(tabs);
+        // -------------------------------------------------
+
+        Recipients recipients = new Recipients();
+        recipients.setSigners(Collections.singletonList(firmante));
+        envelopeDefinition.setRecipients(recipients);
+        envelopeDefinition.setStatus("sent");
+
+        // 3. Enviar el sobre a DocuSign y obtener el Envelope ID
+        com.docusign.esign.client.auth.OAuth.UserInfo userInfo = apiClient.getUserInfo(apiClient.getAccessToken());
+        String accountId = userInfo.getAccounts().get(0).getAccountId();
+
+        // Actualizamos dinámicamente la ruta base hacia el servidor correcto de Firmas
+        String baseUri = userInfo.getAccounts().get(0).getBaseUri() + "/restapi";
+        apiClient.setBasePath(baseUri);
+
+        EnvelopeSummary results = envelopesApi.createEnvelope(accountId, envelopeDefinition);
+        String envelopeId = results.getEnvelopeId();
+
+        // 4. Generar la vista de firma (Recipient View)
+        RecipientViewRequest viewRequest = new RecipientViewRequest();
+        viewRequest.setReturnUrl("http://localhost:5173" + rutaRetorno + "?ticketFirma=" + numeroTicket);
+        viewRequest.setAuthenticationMethod("none");
+        viewRequest.setEmail(email);
+        viewRequest.setUserName(nombre);
+        viewRequest.setClientUserId(usuarioId);
+
+        ViewUrl viewUrl = envelopesApi.createRecipientView(accountId, envelopeId, viewRequest);
+        java.util.Map<String, String> respuesta = new java.util.HashMap<>();
+        respuesta.put("url", viewUrl.getUrl());
+        respuesta.put("envelopeId", envelopeId);
+
+        return respuesta;
     }
 
 }

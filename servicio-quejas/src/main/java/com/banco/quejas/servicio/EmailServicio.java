@@ -4,6 +4,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.core.io.ByteArrayResource;
+import jakarta.mail.internet.MimeMessage;
 
 @Service
 public class EmailServicio {
@@ -106,6 +109,36 @@ public class EmailServicio {
             System.out.println("Correo enviado exitosamente a: " + destinatario);
         } catch (Exception e) {
             System.err.println("Error al enviar correo de solicitud de información: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public void enviarCorreoResolucionFinalConPdf(String destinatario, String numeroTicket, byte[] pdfAdjunto) {
+        try {
+            // Se utiliza MimeMessage para soportar correos con archivos adjuntos (multipart)
+            MimeMessage mensaje = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mensaje, true, "UTF-8");
+
+            // Configuración del correo
+            helper.setFrom("bncnotify@outlook.com");
+            helper.setTo(destinatario);
+            helper.setSubject("Resolución Final de Queja - Ticket: " + numeroTicket);
+
+            helper.setText("Estimado cliente,\n\n" +
+                    "Le informamos que el proceso de auditoría y revisión de su queja ha concluido.\n\n" +
+                    "Adjunto a este correo encontrará el dictamen oficial con la resolución final.\n\n " +
+                    "Atentamente,\n" +
+                    "Banco Capital Nacional, S.A. (BCN)");
+
+            // Adjuntar el PDF convirtiendo el arreglo de bytes
+            helper.addAttachment("Resolucion_" + numeroTicket + ".pdf", new ByteArrayResource(pdfAdjunto));
+
+            // Enviar el correo
+            mailSender.send(mensaje);
+            System.out.println("Correo con PDF enviado exitosamente a: " + destinatario);
+
+        } catch (Exception e) {
+            System.err.println("Error al enviar el correo con PDF: " + e.getMessage());
             e.printStackTrace();
         }
     }

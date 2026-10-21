@@ -59,6 +59,8 @@ public class DataSeeder implements CommandLineRunner {
         // --- CREACIÓN DE USUARIOS FINALES ---
         crearUsuarioSiNoExiste("Sofia", "Perez", "astridsofiaperez29896@gmail.com", "Cliente123$", RolNombre.ROLE_USUARIO_FINAL);
         crearUsuarioSiNoExiste("Pedro", "Sánchez", "cliente2@banco.com", "Cliente123$", RolNombre.ROLE_USUARIO_FINAL);
+
+        crearUsuarioSiNoExiste("Eddy", "Ramirez", "gerente1@banco.com", "Gerente123$", RolNombre.ROLE_GERENTE);
     }
 
     // Método auxiliar para no repetir tanto código

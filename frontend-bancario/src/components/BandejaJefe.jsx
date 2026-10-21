@@ -30,6 +30,23 @@ function BandejaJefe({ onLogout }) {
     return tokenString;
   };
 
+  const formatearFecha = (fecha) => {
+    if (!fecha) return '-';
+
+    const fechaObj = new Date(fecha);
+
+    if (isNaN(fechaObj.getTime())) return '-';
+
+    return fechaObj.toLocaleString('es-GT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
   const obtenerTextoCampo = (campo) => {
     if (!campo) return '';
     if (typeof campo === 'object' && campo.nombre) return campo.nombre;
@@ -262,7 +279,6 @@ function BandejaJefe({ onLogout }) {
 
   // Cálculos de estadísticas para el Jefe
   const statsNuevas = quejas.filter(q => obtenerTextoCampo(q.estado).replace(/\s+/g, '') === 'EnRevisionJefe').length;
-  const statsDevueltas = quejas.filter(q => obtenerTextoCampo(q.estado).replace(/\s+/g, '') === 'DevueltaParaRevision').length;
 
   return (
     <div className="portal-layout">
@@ -378,7 +394,11 @@ function BandejaJefe({ onLogout }) {
                       </div>
                       <div>
                         <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>FECHA DE REGISTRO</p>
-                        <p style={{ margin: 0, color: '#1e293b', fontWeight: '900' }}>{queja.fechaYHora || queja.fechaCreacion || 'No disponible'}</p>
+                        <p style={{ margin: 0, color: '#1e293b' }}>
+                          {formatearFecha(queja.fechaYHora || queja.fechaCreacion) !== '-'
+                            ? formatearFecha(queja.fechaYHora || queja.fechaCreacion)
+                            : 'No disponible'}
+                        </p>
                       </div>
                       <div>
                         <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 5px 0', fontWeight: '600' }}>PRODUCTO RELACIONADO</p>
@@ -553,11 +573,30 @@ function BandejaJefe({ onLogout }) {
                         const idTicket = obtenerTextoCampo(queja.numeroTicket) || queja.id;
                         const estadoTexto = obtenerTextoCampo(queja.estado) || 'EnRevisionJefe';
 
+                        const formatearFecha = (fecha) => {
+                          if (!fecha) return '-';
+
+                          const fechaObj = new Date(fecha);
+
+                          if (isNaN(fechaObj.getTime())) return '-';
+
+                          return fechaObj.toLocaleString('es-GT', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                          });
+                        };
+
                         return (
                           <tr key={idTicket} style={{ borderBottom: '1px solid #f1f5f9' }}>
                             <td style={{ padding: '15px', color: '#64748b', fontWeight: '500' }}>#{idTicket}</td>
                             <td style={{ padding: '15px', color: '#1e293b', fontWeight: '500' }}>{obtenerTextoCampo(queja.titulo)}</td>
-                            <td style={{ padding: '15px', color: '#64748b' }}>{queja.fechaYHora || queja.fechaCreacion || '-'}</td>
+                            <td style={{ padding: '15px', color: '#64748b' }}>
+                              {formatearFecha(queja.fechaYHora || queja.fechaCreacion)}
+                            </td>
                             <td style={{ padding: '15px' }}>
                               <span style={{ background: getColorEstado(estadoTexto).bg, color: getColorEstado(estadoTexto).text, padding: '4px 10px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600' }}>
                                 {estadoTexto}

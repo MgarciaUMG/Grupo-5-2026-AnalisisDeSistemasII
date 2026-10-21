@@ -107,6 +107,9 @@ function Login() {
         } else if (rolRecibido.includes('JEFE')) {
           navigate('/bandeja-jefe');
 
+        } else if (rolRecibido.includes('GERENTE')) {
+          navigate('/bandeja-gerente');
+
         } else {
           console.warn(
             'Rol recibido desde Spring Boot:',

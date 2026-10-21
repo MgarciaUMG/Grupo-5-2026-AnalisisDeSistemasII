@@ -223,9 +223,10 @@ public class QuejaControlador {
                     java.util.Base64.getUrlDecoder().decode(authHeader.replace("Bearer ", "").split("\\.")[1]));
             boolean esSupervisor = tokenPayload.toUpperCase().contains("SUPERVISOR");
             boolean esJefe = tokenPayload.toUpperCase().contains("JEFE");
+            boolean esGerente = tokenPayload.toUpperCase().contains("GERENTE");
 
             // Si no es ninguno de los dos, se bloquea el acceso
-            if (!esElCreador && !esElAgenteAsignado && !esSupervisor && !esJefe) {
+            if (!esElCreador && !esElAgenteAsignado && !esSupervisor && !esJefe && !esGerente) {
                 return ResponseEntity.status(403).body("Acceso denegado o la queja no existe.");
             }
 
@@ -269,9 +270,10 @@ public class QuejaControlador {
                     java.util.Base64.getUrlDecoder().decode(authHeader.replace("Bearer ", "").split("\\.")[1]));
             boolean esSupervisor = tokenPayload.toUpperCase().contains("SUPERVISOR");
             boolean esJefe = tokenPayload.toUpperCase().contains("JEFE");
+            boolean esGerente = tokenPayload.toUpperCase().contains("GERENTE");
 
             // Si no es ninguno de los dos, bloqueamos el acceso
-            if (!esElCreador && !esElAgenteAsignado && !esSupervisor && !esJefe) {
+            if (!esElCreador && !esElAgenteAsignado && !esSupervisor && !esJefe && !esGerente) {
                 return ResponseEntity.status(403).build(); // Acceso denegado
             }
 
@@ -586,8 +588,9 @@ public class QuejaControlador {
                     java.util.Base64.getUrlDecoder().decode(authHeader.replace("Bearer ", "").split("\\.")[1]));
             boolean esSupervisor = tokenPayload.toUpperCase().contains("SUPERVISOR");
             boolean esJefe = tokenPayload.toUpperCase().contains("JEFE");
+            boolean esGerente = tokenPayload.toUpperCase().contains("GERENTE");
 
-            if (!esElCreador && !esElAgenteAsignado && !esSupervisor && !esJefe) {
+            if (!esElCreador && !esElAgenteAsignado && !esSupervisor && !esJefe && !esGerente) {
                 return ResponseEntity.status(403).body("Acceso denegado al historial.");
             }
 
@@ -610,7 +613,6 @@ public class QuejaControlador {
         try {
             // Buscamos ambos estados en la BD
             EstadoQueja estadoRevision = estadoQuejaRepositorio.findByNombre("EnRevisionSupervisor");
-            
 
             java.util.List<Queja> quejasPendientes = new java.util.ArrayList<>();
 
@@ -896,8 +898,7 @@ public class QuejaControlador {
                     emailJefe,
                     pdfConDosFirmas,
                     numeroTicket,
-                    "/bandeja-jefe"
-            );
+                    "/bandeja-jefe");
 
             queja.setEstado(estadoNuevo);
             queja.setFirmaId(docuSignRespuesta.get("envelopeId"));
@@ -980,6 +981,156 @@ public class QuejaControlador {
 
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Error interno: " + e.getMessage());
+        }
+    }
+
+    // =======================================================
+    // CU07: 1. LISTAR QUEJAS DEL GERENTE
+    // =======================================================
+    @GetMapping("/gerente/pendientes")
+    public ResponseEntity<?> obtenerQuejasParaGerente() {
+        try {
+            EstadoQueja estado = estadoQuejaRepositorio.findByNombre("EnDictamen"); // Ajusta el estado si se llama
+                                                                                    // diferente en tu BD
+            if (estado == null)
+                return ResponseEntity.ok(java.util.Collections.emptyList());
+            return ResponseEntity.ok(quejaRepositorio.findByEstado(estado));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error al obtener bandeja de gerencia.");
+        }
+    }
+
+    @GetMapping("/gerente/estadisticas")
+    public ResponseEntity<?> obtenerEstadisticasGerente() {
+        try {
+            EstadoQueja estado = estadoQuejaRepositorio.findByNombre("EnDictamen");
+            long pendientes = (estado != null) ? quejaRepositorio.findByEstado(estado).size() : 0;
+            return ResponseEntity.ok(java.util.Map.of("mensajeBienvenida",
+                    "Tienes " + pendientes + " dictámenes esperando firma final."));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    // =======================================================
+    // CU07: 2. APROBAR O DENEGAR Y ENVIAR A DOCUSIGN
+    // =======================================================
+    @PutMapping("/{numeroTicket}/gerente-procesar")
+    public ResponseEntity<?> procesarResolucionGerente(
+            @PathVariable String numeroTicket,
+            @RequestBody java.util.Map<String, String> payload,
+            @RequestHeader("Authorization") String authHeader,
+            jakarta.servlet.http.HttpServletRequest request) {
+        try {
+            String emailGerente = extraerEmailDelToken(authHeader);
+            String observaciones = payload.get("observaciones");
+            String accion = payload.get("accion"); // Vendrá 'aprobar' o 'denegar'
+            String nombreGerente = payload.getOrDefault("nombreFirmante", "Gerente General");
+
+            if (observaciones == null || observaciones.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Debe ingresar un texto antes de firmar.");
+            }
+
+            Queja queja = quejaServicio.obtenerQuejaPorTicket(numeroTicket);
+            if (queja == null)
+                return ResponseEntity.notFound().build();
+
+            String estadoAnterior = queja.getEstado().getNombre();
+
+            // Elegimos el estado final según el botón
+            String nombreNuevoEstado = accion.equals("aprobar") ? "Aprobada" : "Denegada";
+            EstadoQueja estadoNuevo = estadoQuejaRepositorio.findByNombre(nombreNuevoEstado);
+
+            // 1. Descargamos el PDF que YA trae las 3 firmas (El ID activo de la queja)
+            byte[] pdfConTresFirmas = docuSignService.descargarDocumentoFirmado(queja.getFirmaId());
+
+            // 2. Generamos la firma del Gerente, PASÁNDOLE LOS COMENTARIOS y si fue
+            // aprobado o denegado
+            String prefijoFirma = accion.toUpperCase() + " POR GERENCIA: " + observaciones;
+
+            java.util.Map<String, String> docuSignRespuesta = docuSignService.generarUrlDeFirmaGerente(
+                    "ger-" + queja.getId(),
+                    nombreGerente,
+                    emailGerente,
+                    pdfConTresFirmas,
+                    numeroTicket,
+                    "/bandeja-gerente",
+                    prefijoFirma // <- Pasamos el texto
+            );
+
+            queja.setEstado(estadoNuevo);
+            queja.setFirmaId(docuSignRespuesta.get("envelopeId"));
+            quejaRepositorio.save(queja);
+
+            com.banco.quejas.modelo.BitacoraQueja bitacora = new com.banco.quejas.modelo.BitacoraQueja(
+                    emailGerente, queja.getId(), estadoAnterior, estadoNuevo.getNombre(),
+                    "Decisión final de Gerencia: " + accion.toUpperCase() + ". Comentarios: " + observaciones,
+                    java.time.LocalDateTime.now(), obtenerIpCliente(request));
+            bitacoraQuejaRepositorio.save(bitacora);
+
+            return ResponseEntity.ok(java.util.Map.of(
+                    "mensaje", "Preparando firma electrónica...",
+                    "urlFirma", docuSignRespuesta.get("url")));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error al procesar: " + e.getMessage());
+        }
+    }
+
+    // =======================================================D
+    // CU07: 3. DEVOLVER AL AGENTE DESDE GERENCIA
+    // =======================================================
+    @PutMapping("/{numeroTicket}/gerente-devolver")
+    public ResponseEntity<?> devolverAAgenteDesdeGerencia(
+            @PathVariable String numeroTicket,
+            @RequestBody java.util.Map<String, String> payload,
+            @RequestHeader("Authorization") String authHeader,
+            jakarta.servlet.http.HttpServletRequest request) {
+        try {
+            String emailGerente = extraerEmailDelToken(authHeader);
+            String observaciones = payload.get("observaciones");
+
+            Queja queja = quejaServicio.obtenerQuejaPorTicket(numeroTicket);
+            EstadoQueja estadoDevuelto = estadoQuejaRepositorio.findByNombre("DevueltaParaRevision"); // Estado hacia el
+                                                                                                      // Agente
+
+            queja.setEstado(estadoDevuelto);
+            quejaRepositorio.save(queja);
+
+            MensajeQueja mensajeRechazo = new MensajeQueja(
+                    queja, emailGerente, "GERENTE",
+                    "Dictamen cancelado desde Gerencia. Corregir y escalar de nuevo: " + observaciones,
+                    java.time.LocalDateTime.now());
+            mensajeQuejaRepositorio.save(mensajeRechazo);
+
+            return ResponseEntity.ok(java.util.Map.of("mensaje", "La queja fue regresada al equipo de agentes."));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error: " + e.getMessage());
+        }
+    }
+
+    // =======================================================
+    // CU07: 4. ENVIAR RESOLUCIÓN FINAL AL CORREO DEL CLIENTE
+    // =======================================================
+    @PostMapping("/{numeroTicket}/notificar-cliente")
+    public ResponseEntity<?> enviarResolucionAlCliente(@PathVariable String numeroTicket) {
+        try {
+            Queja queja = quejaServicio.obtenerQuejaPorTicket(numeroTicket);
+            if (queja == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // 1. Descargamos el PDF FINAL de DocuSign (ahora sí tiene las 4 firmas)
+            byte[] pdfFinal = docuSignService.descargarDocumentoFirmado(queja.getFirmaId());
+
+            // 2. Llamamos a tu EmailServicio, pasándole los datos y el PDF firmado
+            emailServicio.enviarCorreoResolucionFinalConPdf(
+                    queja.getUsuarioEmail(),
+                    queja.getNumeroTicket(),
+                    pdfFinal);
+
+            return ResponseEntity.ok(java.util.Map.of("mensaje", "Correo y PDF enviados al cliente exitosamente."));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error al enviar el correo: " + e.getMessage());
         }
     }
 
