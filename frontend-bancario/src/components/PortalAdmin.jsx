@@ -76,7 +76,7 @@ function PortalAdmin({ onLogout }) {
       const matchUsuario = log.usuario.toLowerCase().includes(filtros.usuario.toLowerCase());
       const matchRol = log.rol.toLowerCase().includes(filtros.rol.toLowerCase());
       const matchFecha = log.fecha.includes(filtros.fecha);
-      const matchTicket = tabBitacora === 'quejas' ? log.id.toLowerCase().includes(filtros.ticket.toLowerCase()) : true;
+      const matchTicket = filtros.ticket ? String(log.id).toLowerCase().includes(filtros.ticket.toLowerCase()) : true;
       return matchUsuario && matchRol && matchFecha && matchTicket;
     });
 
@@ -106,7 +106,7 @@ function PortalAdmin({ onLogout }) {
       const matchUsuario = log.usuario.toLowerCase().includes(filtros.usuario.toLowerCase());
       const matchRol = log.rol.toLowerCase().includes(filtros.rol.toLowerCase());
       const matchFecha = log.fecha.includes(filtros.fecha);
-      const matchTicket = tabBitacora === 'quejas' ? log.id.toLowerCase().includes(filtros.ticket.toLowerCase()) : true;
+      const matchTicket = filtros.ticket ? String(log.id).toLowerCase().includes(filtros.ticket.toLowerCase()) : true;
       return matchUsuario && matchRol && matchFecha && matchTicket;
     });
 
